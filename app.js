@@ -27,9 +27,9 @@ var exampleArticle = {
 // Storing scraping info here in code.
 // nameOfPattern: = [urlPattern, key, successPattern, failPattern]
 var sources = {
-    pm:   ["http://www.ncbi.nlm.nih.gov/pubmed/[id]", "pmid", null],
-    pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/[id]", "pmcid", null],
-    reut: ["http://thomsonreuters.com/kinda-suck/[id]/pretty-hard/", "reutid", null]
+    pm:   ["http://www.ncbi.nlm.nih.gov/pubmed/[id]", "pmid", '$("#absid").attr("value")'],
+    pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/[id]", "pmcid", '$(".accid").text().substring(3)'],
+    reut: ["http://thomsonreuters.com/is-difficult-to-scrape/[id]/", "reutid", null]
 };
 
 function Source(sourceName){
@@ -105,7 +105,7 @@ function scrapeResults(article, src, error, response, body){
     var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+src+"</p>"; // this will be the request going out, just passing to cb for now
     $('body').append(patternWarning);
     var status = eval(String(pattern));
-    var bits = [ article.ids.landes + "<---", "[ " + src + " ]", response + ": ", " " + status ];
+    var bits = [ article.ids.landes + "<---", "[ " + src + " ]", response.statusCode + ": ", " " + status ];
     console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
     //console.log(util.inspect(response));
     // get the success or failure and write to the db
