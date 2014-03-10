@@ -21,17 +21,19 @@ var exampleArticle = {
         pm:3548250,
         pmc:3825233,
         doi:'10.4161/biom.25414',
+        eid:'biomatter e25414',
         reut:null
     }
 };
 
+
 // Storing scraping info here in code.
 // nameOfPattern: = [urlPattern, key, successPattern, failPattern]
 var sources = {
-    pm:   ["http://www.ncbi.nlm.nih.gov/pubmed/[id]", "pmid", '$("#absid").attr("value")'],
-    // pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/[id]", "pmcid", '$(".accid").text().substring(3)'],
+    pm:   ["http://www.ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum", "eid", '$("#maincontent .rprt .details ").text()'],
     pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/?term=[id]", "doi", '$("#maincontent .doi").text().substring(5)'],
     reut: ["http://thomsonreuters.com/is-difficult-to-scrape/[id]/", "reutid", null]
+
 };
 function Source(sourceName){
     this.status = "pending";
@@ -45,6 +47,8 @@ function Article(articleID){
         landes : articleID,
         pm : null,
         pmc : null,
+        doi: null,
+        eid: null,
         reut : null
     }
     this.sources = {}
@@ -92,7 +96,8 @@ function launchScraper(article, src, cb){
     var source = article.sources[src];
     var re = new RegExp("\\[id\\]");
     var url = article.sources[ src ].urlPattern;
-    kid = article.ids[String( src )];
+    // console.log(util.inspect(article).red);
+    kid = article.ids[String( article.sources[src].key )];
     url = url.replace( re, kid );
     var bits = [ article.ids.landes + "--->", "[ " + src + " ]", " " + url ];
     console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
@@ -118,4 +123,3 @@ function scrapeResults(article, src, error, response, body){
 }
 
 articleGetStatus(exampleArticle.ids.lid);
-
