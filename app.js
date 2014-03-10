@@ -20,6 +20,7 @@ var exampleArticle = {
         landes:17717,
         pm:3548250,
         pmc:3825233,
+        doi:'10.4161/biom.25414',
         reut:null
     }
 };
@@ -28,10 +29,10 @@ var exampleArticle = {
 // nameOfPattern: = [urlPattern, key, successPattern, failPattern]
 var sources = {
     pm:   ["http://www.ncbi.nlm.nih.gov/pubmed/[id]", "pmid", '$("#absid").attr("value")'],
-    pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/[id]", "pmcid", '$(".accid").text().substring(3)'],
+    // pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/[id]", "pmcid", '$(".accid").text().substring(3)'],
+    pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/?term=[id]", "doi", '$("#maincontent .doi").text().substring(5)'],
     reut: ["http://thomsonreuters.com/is-difficult-to-scrape/[id]/", "reutid", null]
 };
-
 function Source(sourceName){
     this.status = "pending";
     this.urlPattern = sources[sourceName][0];
@@ -104,7 +105,11 @@ function scrapeResults(article, src, error, response, body){
     $ = cheerio.load(body);
     var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+src+"</p>"; // this will be the request going out, just passing to cb for now
     $('body').append(patternWarning);
-    var status = eval(String(pattern));
+    var status = eval(String(pattern)) || false;
+    if (!status){
+      console.log(util.inspect(eval(String(pattern))));
+
+    };
     var bits = [ article.ids.landes + "<---", "[ " + src + " ]", response.statusCode + ": ", " " + status ];
     console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
     //console.log(util.inspect(response));
