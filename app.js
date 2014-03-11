@@ -1,9 +1,11 @@
 // app.js
-var util = require('util');
-var request = require('request');
-var mongo = require('mongodb');
-var cheerio = require('cheerio');
-var colors = require('colors');
+// TODO Get this guy listening on a socket for json objects
+var util = require('util'),
+    request = require('request'),
+    express = require('express'),
+    mongo = require('mongodb'),
+    cheerio = require('cheerio'),
+    colors = require('colors');
 
 var request = request.defaults(
   {jar: true}
@@ -122,4 +124,4 @@ function scrapeResults(article, src, error, response, body){
     // need to record datetime and maybe an error message?
 }
 
-articleGetStatus(exampleArticle.ids.lid);
+// articleGetStatus(exampleArticle.ids.lid);
