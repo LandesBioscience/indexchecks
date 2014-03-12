@@ -31,18 +31,16 @@ var exampleArticle = {
     }
 };
 
+var sources = {};
 function loadSources(){
-    var sources;
     fs.readFile('sources.json', 'utf8', function (err, data) {
         if (err) throw err;
           sources = JSON.parse(data);
     });
 };
-
 function Scraper(article){
     this.article = article;
     this.sources = {};
-
 };
 
 function Source(sourceName){
@@ -53,27 +51,48 @@ function Source(sourceName){
 }
 // Trying out the new Object.create syntax available in ES5
 var Article = {
-     init:  function(){
-        // Write obj to db
-        // begin initial scrape?
-        // Other things?......
-        console.log("[article init()]".green);
-        console.log(util.inspect(this).blue);
+    save: function(){
+        var junk = {whatever: "screw you, i do what i want!"};
+        console.log("[article.save()]".green);
+        console.log(util.inspect(this).grey);
+        saveArticle(this);
+    },
+    init:  function(){
+        saveArticle(this);     // Write obj to db
+        pmcScrape(this);
+        console.log("checking all sources.".green);
     }
-}
+};
 
+function pmcScrape(article){
+    var source = sources['pmc'];
+    console.log(util.inspect(source));
+    var re = new RegExp("\\[id\\]");
+    var url = source[0];
+    console.log(util.inspect(article).red);
+    url = url.replace( re, article.oid );
+    var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
+    console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
+    request(url, function(error, response, body){
+         scrapeResults(article, source, error, response, body);
+    });
+    
+}
 function articleCreate(doi, res, cb){
     // write article into db and instantiate scrapers
     var article = Object.create(Article);
     article.doi = doi;
     article.init();
-    console.log(util.inspect(article).blue);
+    article.save();
     resWithJSON(res, 200, article);
+    
 }
 
 function resWithJSON(res, status, obj){
     res.status(status);
     res.write(JSON.stringify(obj));
+    res.end();
+    console.log("!!!!!".red);
 }
 
 function articleFetch(params, res, cb){
@@ -90,7 +109,7 @@ function articleFetch(params, res, cb){
                 // search for existing article or create new one.
                 if(!article){
                     var article = new Article(idKey, idValue);
-                    saveNewArticle(article);
+                    saveArticle(article);
                 }
                 res.writeHead(200, {"Content-Type":"text/json"});
                 res.write(JSON.stringify(article));
@@ -100,9 +119,7 @@ function articleFetch(params, res, cb){
     })
 }
 
-function saveNewArticle(article){
-    // Stuff this full of stuff todo when a new article is created.
-    launchIdScrape(article);
+function saveArticle(article){
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(er, collection) {
             collection.insert(article, {safe: true}, function(er,rs) {
@@ -137,17 +154,17 @@ function launchScraper(article, src, cb){
     });
 }
 
-function scrapeResults(article, src, error, response, body){
-    var pattern = article.sources[src].scrapePattern || '$("#scrape-pattern-missing").text()';
+function scrapeResults(article, source, error, response, body){
+    var pattern = source[2] || '$("#scrape-pattern-missing").text()';
     $ = cheerio.load(body);
-    var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+src+"</p>"; // this will be the request going out, just passing to cb for now
+    var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+source+"</p>"; // this will be the request going out, just passing to cb for now
     $('body').append(patternWarning);
     var status = eval(String(pattern)) || false;
     if (!status){
       console.log(util.inspect(eval(String(pattern))));
 
     };
-    var bits = [ article.ids.landes + "<---", "[ " + src + " ]", response.statusCode + ": ", " " + status ];
+    var bits = [ article.oid + "<---", "[ " + source + " ]", response.statusCode + ": ", " " + status ];
     console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
     //console.log(util.inspect(response));
     // get the success or failure and write to the db
@@ -175,12 +192,9 @@ app.post('/article', function(req, res){
 });
 
 app.post('/article/add', function(req, res){
-    console.log("[create article]".green + JSON.stringify(req.body));
-    // Check the db for an article with id whatever
     var jsonKey = Object.keys(req.body)[0];
     if( req.body.doi ){
         var doi = req.body.doi;
-        console.log("create  one article");
         articleCreate(req.body.doi, res, cb); 
     } else if( req.body.dois) { 
         var dois = req.body['dois'];
@@ -201,5 +215,6 @@ function cb(data){
     console.log("[cb()]".red + util.inspect(data).blue)
 };
 
+loadSources();
 app.listen(1337);
 // articleGetStatus(exampleArticle.ids.lid);
