@@ -24,17 +24,9 @@ var exampleArticle = {
 };
 
 function Article(idKey, idValue){
-    this.ids = {
-        pid: null,
-        doi: null,
-        eid: null,
-        pmi: null,
-        pmc: null,
-        reu: null
-    }
+    this.ids = {}
     this.ids[idKey] = idValue;
 }
-
 
 function articleFetch(params, res, cb){
     idKey = params[0];
@@ -61,13 +53,25 @@ function articleFetch(params, res, cb){
 }
 
 function saveNewArticle(article){
+    // Stuff this full of stuff todo when a new article is created.
+    launchIdScrape(article);
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(er, collection) {
-            collection.insert(article, {safe: true}, function(er,rs) {if(er){console.log("[error]".red + er);}});
+            collection.insert(article, {safe: true}, function(er,rs) {
+              if(er){console.log("[error]".red + er);}
+            });
         });
     })
 }
 
+function doiScrape(article){
+    switch(article.ids){
+    
+    
+    
+    }
+
+}
 function respond(something){
     console.log(util.inspect(something));
 
