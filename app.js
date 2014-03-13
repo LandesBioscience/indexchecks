@@ -94,10 +94,10 @@ function articleCreate(doi, res, cb){
     article.doi = doi;
     article.init();
     article.save();
-    article.mesage = "New article created, fetching status .";
-    res.json(200, article);
+    var obj = article; // trying to be verbose about it, maybe a waste
+    obj.mesage = "New article created, fetching status .";
+    res.json(200, obj);
 }
-
 
 function articleFetch(params, res, cb){
     idKey = params[0];
@@ -187,28 +187,38 @@ app.get('/article', function(req, res){
 });
 
 app.post('/article', function(req, res){
-    var json = JSON.stringify(req.body);
-    console.log(json);
-    // Check the db for an article with id whatever
-    articleFetch(req.params, res, cb)
+    // This should be rewritten to accept a json object with one or more ids , and attempt to find a matching article in the db.
+    // working on article add and scraping first
+    // if( req.body.doi ){
+    //     var doi = req.body.doi;
+    //     articleFetch(req.body.doi, res, cb); 
+    // } else if( req.body.dois) { 
+    //     var dois = req.body['dois'];
+    //     for (var i = 0; i < dois.length; i++ ){
+    //         console.log("create  article " + dois[i]);
+    //         articleFetch(dois[i], res, cb);
+    //     }
+    // } else {
+    //     var obj = {message: "malformed json object in request: expecting doi or array of dois"}
+    //     res.json(400, obj);
+    // }
+    req.body.message = "Is there an echo in here?";
+    res.json(200, req.body); // echoing for now
 });
 
 app.post('/article/add', function(req, res){
-    var jsonKey = Object.keys(req.body)[0];
     if( req.body.doi ){
         var doi = req.body.doi;
         articleCreate(req.body.doi, res, cb); 
     } else if( req.body.dois) { 
         var dois = req.body['dois'];
-        console.log(util.inspect(dois).blue);
         for (var i = 0; i < dois.length; i++ ){
             console.log("create  article " + dois[i]);
             articleCreate(dois[i], res, cb);
         }
     } else {
-        res.status(400);
-        res.write('{"error": "malformed json object in request: expecting doi or array of dois"}');
-        res.end();
+       var obj = {"error": "malformed json object in request: expecting doi or array of dois"};
+       res.json(400, obj);
     }
 });
 
