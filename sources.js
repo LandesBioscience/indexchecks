@@ -29,8 +29,12 @@ function exportJson(){
     });
 }
 
-if(argv.src){
-    console.log('source is:'+argv.src);
+function test(src){
+   console.log('testing:' + src);
+}
+
+if(argv.test){
+    test(argv.test);
 } else if(argv._[0] == 'export'){
     exportJson();
 } else {
