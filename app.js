@@ -63,8 +63,7 @@ var Article = {
     },
     init:  function(){
         saveArticle(this);     // Write obj to db
-        pmcScrape(this);
-        console.log("checking all sources.".green);
+        pmcFetch(this); // start scraper chain
     }
 };
 
@@ -74,17 +73,34 @@ function cb(data){
     console.log("[cb()]".red + util.inspect(data).blue)
 };
 
-function pmcScrape(article){
+function pmcFetch(article){
     var source = sources['pmc'];
-    console.log(util.inspect(source));
+    // console.log(util.inspect(source));
     var re = new RegExp("\\[id\\]");
     var url = source[0];
-    console.log(util.inspect(article).red);
+    // console.log(util.inspect(article).red);
     url = url.replace( re, article.oid );
-    var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
-    console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
+    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
+    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
     request(url, function(error, response, body){
-         scrapeResults(article, source, error, response, body);
+        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
+         pmcScrape(obj);
+    });
+}
+
+function pmFetch(article){
+    var source = sources['pm'];
+    // console.log(util.inspect(source));
+    var re = new RegExp("\\[id\\]");
+    var url = source[0];
+    // console.log(util.inspect(article).red);
+    url = url.replace( re, article.oid );
+    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
+    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
+    request(url, function(error, response, body){
+        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
+         // pmcScrape(obj);
+         console.log("end of the line, buddy: pmFetch");
     });
 }
 
@@ -152,24 +168,30 @@ function launchScraper(article, src, cb){
         cb(article, src, error, response, body);
     });
 }
+function pmcScrape(obj){
+    // I feel like i could bundle some of this info up to keep the params smaller... TODO
+    scrapeResults(obj, pmFetch);
+}
 
-function scrapeResults(article, source, error, response, body){
-    if (!error && response){
-        var pattern = source[2] || '$("#scrape-pattern-missing").text()';
-        $ = cheerio.load(body);
-        var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+source+"</p>"; // this will be the request going out, just passing to cb for now
+function scrapeResults(obj, cb){
+    if (!obj.error && obj.response){
+        var pattern = obj.source[2] || '$("#scrape-pattern-missing").text()';
+        $ = cheerio.load(obj.body);
+        var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+obj.source+"</p>"; // this will be the request going out, just passing to cb for now
         $('body').append(patternWarning);
         var status = eval(String(pattern)) || false;
         if (!status){
           console.log(util.inspect(eval(String(pattern))));
         };
-        var bits = [ article.oid + "<---", "[ " + source + " ]", response.statusCode + ": ", " " + status ];
+        var bits = [ obj.article.doi + "<---", "[ " + obj.source + " ]", obj.response.statusCode + ": ", " " + status ];
         console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
-        //console.log(util.inspect(response));
+        console.log(util.inspect(obj.article));
         // get the success or failure and write to the db
         // need to record datetime and maybe an error message?
+        cb(obj);
     } else {
         console.log("error in scrapeResults(), ");
+        console.log(util.inspect(obj.error));
     }
 }
 
