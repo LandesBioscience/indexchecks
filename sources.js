@@ -1,3 +1,4 @@
+var argv = require('minimist')(process.argv.slice(2));
 fs = require('fs');
 // Storing scraping info here in code.
 // nameOfPattern: = [urlPattern, key, successPattern, failPattern]
@@ -12,3 +13,4 @@ fs.writeFile('sources.json',JSON.stringify(sources), function (err){
     if(err) throw err;
     console.log('exported resources to json file. maintain those there.');
 });
+console.dir(argv);
