@@ -1,5 +1,7 @@
+#!/usr/bin/env node
 var argv = require('minimist')(process.argv.slice(2));
-fs = require('fs');
+var fs = require('fs');
+var util = require('util');
 // Storing scraping info here in code.
 // nameOfPattern: = [urlPattern, key, successPattern, failPattern]
 var sources = {
@@ -9,8 +11,18 @@ var sources = {
 
 };
 
-fs.writeFile('sources.json',JSON.stringify(sources), function (err){
-    if(err) throw err;
-    console.log('exported resources to json file. maintain those there.');
-});
-console.dir(argv);
+function exportJson(){
+    fs.writeFile('sources.json',JSON.stringify(sources), function (err){
+        if(err) throw err;
+        console.log('exported resources to json file. maintain those there.');
+    });
+}
+if(argv.src){
+    console.log('source is:'+argv.src);
+} else if(argv._[0] == 'export'){
+    exportJson();
+} else {
+  console.log("use $./sources.js export; to export sources json file");
+  console.log("current sources:");
+  console.log(util.inspect(sources));
+}
