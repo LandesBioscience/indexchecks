@@ -73,36 +73,6 @@ function cb(data){
     console.log("[cb()]".red + util.inspect(data).blue)
 };
 
-function pmcFetch(article){
-    var source = sources['pmc'];
-    // console.log(util.inspect(source));
-    var re = new RegExp("\\[id\\]");
-    var url = source[0];
-    // console.log(util.inspect(article).red);
-    url = url.replace( re, article.oid );
-    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
-    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
-    request(url, function(error, response, body){
-        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
-         pmcScrape(obj);
-    });
-}
-
-function pmFetch(article){
-    var source = sources['pm'];
-    // console.log(util.inspect(source));
-    var re = new RegExp("\\[id\\]");
-    var url = source[0];
-    // console.log(util.inspect(article).red);
-    url = url.replace( re, article.oid );
-    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
-    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
-    request(url, function(error, response, body){
-        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
-         // pmcScrape(obj);
-         console.log("end of the line, buddy: pmFetch");
-    });
-}
 
 function articleCreate(doi, res, cb){
     // write article into db and instantiate scrapers
@@ -168,9 +138,40 @@ function launchScraper(article, src, cb){
         cb(article, src, error, response, body);
     });
 }
+function pmcFetch(article){
+    var source = sources['pmc'];
+    // console.log(util.inspect(source));
+    var re = new RegExp("\\[id\\]");
+    var url = source[0];
+    // console.log(util.inspect(article).red);
+    url = url.replace( re, article.oid );
+    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
+    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
+    request(url, function(error, response, body){
+        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
+         pmcScrape(obj);
+    });
+}
+
 function pmcScrape(obj){
     // I feel like i could bundle some of this info up to keep the params smaller... TODO
     scrapeResults(obj, pmFetch);
+}
+
+function pmFetch(article){
+    var source = sources['pm'];
+    // console.log(util.inspect(source));
+    var re = new RegExp("\\[id\\]");
+    var url = source[0];
+    // console.log(util.inspect(article).red);
+    url = url.replace( re, article.oid );
+    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
+    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
+    request(url, function(error, response, body){
+        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
+         // pmcScrape(obj);
+         console.log("end of the line, buddy: pmFetch");
+    });
 }
 
 function scrapeResults(obj, cb){
