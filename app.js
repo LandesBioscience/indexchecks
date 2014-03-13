@@ -1,6 +1,7 @@
 // app.js
-// TODO Get this guy listening on a socket for json objects
 // curl -X POST -H "Content-Type:application/json" -d '{"comment":"test", "line":2}' http://localhost:1337/article
+// TODO: improve error logging, complete crape path, consolidate scrape code into a scraper object
+//
 
 var util           = require('util'),
     fs             = require('fs'),
@@ -32,12 +33,14 @@ var exampleArticle = {
 };
 
 var sources = {};
+
 function loadSources(){
     fs.readFile('sources.json', 'utf8', function (err, data) {
         if (err) throw err;
-          sources = JSON.parse(data);
+        sources = JSON.parse(data);
     });
 };
+
 function Scraper(article){
     this.article = article;
     this.sources = {};
@@ -49,6 +52,7 @@ function Source(sourceName){
     this.key = sources[sourceName][1];
     this.scrapePattern  = sources[sourceName][2];
 }
+
 // Trying out the new Object.create syntax available in ES5
 var Article = {
     save: function(){
@@ -64,6 +68,12 @@ var Article = {
     }
 };
 
+// Helper functions
+function cb(data){
+    // This is just a placeholder Callback
+    console.log("[cb()]".red + util.inspect(data).blue)
+};
+
 function pmcScrape(article){
     var source = sources['pmc'];
     console.log(util.inspect(source));
@@ -76,24 +86,18 @@ function pmcScrape(article){
     request(url, function(error, response, body){
          scrapeResults(article, source, error, response, body);
     });
-    
 }
+
 function articleCreate(doi, res, cb){
     // write article into db and instantiate scrapers
     var article = Object.create(Article);
     article.doi = doi;
     article.init();
     article.save();
-    resWithJSON(res, 200, article);
-    
+    article.mesage = "New article created, fetching status .";
+    res.json(200, article);
 }
 
-function resWithJSON(res, status, obj){
-    res.status(status);
-    res.write(JSON.stringify(obj));
-    res.end();
-    console.log("!!!!!".red);
-}
 
 function articleFetch(params, res, cb){
     idKey = params[0];
@@ -111,9 +115,7 @@ function articleFetch(params, res, cb){
                     var article = new Article(idKey, idValue);
                     saveArticle(article);
                 }
-                res.writeHead(200, {"Content-Type":"text/json"});
-                res.write(JSON.stringify(article));
-                res.end();
+                res.json(200, article);
             });
         });
     })
@@ -121,19 +123,16 @@ function articleFetch(params, res, cb){
 
 function saveArticle(article){
     mongo.Db.connect(mongoUri, function (err, db) {
-        db.collection('articles', function dbWrite(er, collection) {
-            collection.insert(article, {safe: true}, function(er,rs) {
-              if(er){console.log("[error]".red + er);}
+        db.collection('articles', function dbWrite(err, collection) {
+            collection.update({doi: article.doi}, article, {upsert: true}, function (err, resp){
+                if(err){console.log('There was an error saving the article'.red);}
             });
         });
-    })
+    });
 }
 
-
 function startScan(article){
-    // just for testing... the initial scrape of landes still needs doing.
     article.ids = exampleArticle.ids;
-
     // console.log(util.inspect(article));
     for(source in article.sources){
         launchScraper(article, source, scrapeResults);
@@ -155,35 +154,38 @@ function launchScraper(article, src, cb){
 }
 
 function scrapeResults(article, source, error, response, body){
-    var pattern = source[2] || '$("#scrape-pattern-missing").text()';
-    $ = cheerio.load(body);
-    var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+source+"</p>"; // this will be the request going out, just passing to cb for now
-    $('body').append(patternWarning);
-    var status = eval(String(pattern)) || false;
-    if (!status){
-      console.log(util.inspect(eval(String(pattern))));
-
-    };
-    var bits = [ article.oid + "<---", "[ " + source + " ]", response.statusCode + ": ", " " + status ];
-    console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
-    //console.log(util.inspect(response));
-    // get the success or failure and write to the db
-    // need to record datetime and maybe an error message?
+    if (!error && response){
+        var pattern = source[2] || '$("#scrape-pattern-missing").text()';
+        $ = cheerio.load(body);
+        var patternWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+source+"</p>"; // this will be the request going out, just passing to cb for now
+        $('body').append(patternWarning);
+        var status = eval(String(pattern)) || false;
+        if (!status){
+          console.log(util.inspect(eval(String(pattern))));
+        };
+        var bits = [ article.oid + "<---", "[ " + source + " ]", response.statusCode + ": ", " " + status ];
+        console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
+        //console.log(util.inspect(response));
+        // get the success or failure and write to the db
+        // need to record datetime and maybe an error message?
+    } else {
+        console.log("error in scrapeResults(), ");
+    }
 }
 
+// Express code for routing etc.
 app = express();
 app.use(express.static(__dirname + '/public'));   // set the static files location /public/img will be /img for users
 app.use(express.bodyParser());            // pull information from html in POST
-
 
 app.configure(function (){
     app.use(express.logger('dev'));
 });
 
-
 app.get('/article', function(req, res){
     // Look in the db and respond with the appropriate article
 });
+
 app.post('/article', function(req, res){
     var json = JSON.stringify(req.body);
     console.log(json);
@@ -209,11 +211,6 @@ app.post('/article/add', function(req, res){
         res.end();
     }
 });
-
-function cb(data){
-    // This is just a placeholder Callback
-    console.log("[cb()]".red + util.inspect(data).blue)
-};
 
 loadSources();
 app.listen(1337);
