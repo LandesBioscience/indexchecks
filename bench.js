@@ -90,7 +90,7 @@ function srcScrape(req){
 }
 function report(result){
     console.log("[ match results ] ".blue + result.match.green);
-    if (!argv.v){ console.log("[ Or..... invoke with -v to see how that result was generate. ;-P ]".grey);}
+    if (!argv.v && !(argv.urlPattern || argv.id || argv.url || argv.scrape)){ console.log("[ Or..... invoke with -v to see how that result was generate. ;-P ]".grey);}
     if (argv.v && !(argv.urlPattern || argv.id || argv.url || argv.scrape)) { 
         console.log("Any of these variables can be set from the cli, try the following: ".grey);
         console.log("./bench.js -v --id=\'rtfm\' --scrape=\'$(\".g .s\").first().text()\'".grey);
