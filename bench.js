@@ -16,15 +16,28 @@ var idSources = {
     doi: "Sorry, this one's where we start for now"
 
 };
-
+var sources = {};
 //default status sources
-var statusSources = {
+sources.statuses = {
     pubmed:   ["http://www.ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum", "eid", '$("#maincontent .rprt .details ").text()'],
     pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/?term=[id]", "doi", '$("#maincontent .doi").text().substring(5)'],
     reuters: ["http://thomsonreuters.com/is-difficult-to-scrape/[id]/", "reutid", null]
 
 };
-
+sources.ids = {
+    pmi: {},
+    pmc: {  // info for scraping to find an article's pmc id
+        {
+          id_key          : 'doi',
+          urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
+          scrapePattern   : '$(".rprtid dd").text().substring(3)'
+        }
+    },
+    pid: {},
+    reu: {},
+    eid: {},
+    doi: {}
+};
 // default article with alot of ids
 var article = {
     pid:17717,
@@ -39,16 +52,17 @@ var sourceName = argv.src || 'pubmed';
 
 function srcFetch(){
     var req = {};
-    req.urlPattern = argv.urlPattern || 'google.com/search?q=[id]';
+    req.urlPattern = argv.urlPattern || 'ncbi.nlm.nih.gov/pmc/?term=[id]' || 'google.com/search?q=[id]';
     if(argv.v) { console.log("[  urlPattern   ] ".blue + req.urlPattern.green); }
     req.urlPattern = 'http://' + req.urlPattern;
-    req.id = argv.id || 'rtfc coding';
+    req.id = argv.id || '10.4161/biom.25414' || 'rtfc coding';
     if(argv.v) { console.log("[      id       ] ".blue + req.id.green); }
     req.token = new RegExp("\\[id\\]");
 
-    req.url = argv.url || String(req.urlPattern).replace( req.token, req.id );
+
+    req.url = argv.url || req.urlPattern.replace( req.token, req.id );
     if(argv.v) { console.log("[      url      ] ".blue + req.url.green); }
-    request(req.url, function(err, res, body){
+    request(String(req.url), function(err, res, body){
     if(argv.v) { console.log("[ Fetching url  ] ".yellow); }
         req.err = err;
         req.res = res;
@@ -61,9 +75,9 @@ function srcScrape(req){
     if (!req.error && req.res){
         var result = {};
 
-        var token = new RegExp('\\\\');                                                 //
+        var token = new RegExp('\\\\');                                               //
         if (argv.scrape){ argv.scrape = String(argv.scrape).replace( token, '\\' );} // These lines accept a cheerio pattern from the cli via --pattern='$(pattern).etc()'
-        var scrape = argv.scrape || '$(".g .s").first().text().split("\\n")[1]';      //
+        var scrape = argv.scrape || '$(".rprt .supp .details .doi b").text()' || '$(".g .s").first().text().split("\\n")[1]';      //
         if(argv.v) { console.log("[    Scrape     ] ".blue + scrape.green); }
 
         $ = cheerio.load(req.body);
@@ -75,7 +89,8 @@ function srcScrape(req){
         if(argv.v) { console.log("[ scraping resp ] ".yellow); }
         if (!matchResult){
             console.log("[error]".red + " could not generate  matchResult in srcScrape()");
-            console.log(util.inspect(eval(String(scrape))));
+            console.log(String(scrape));
+            console.log(eval(String(scrape)));
         };
         result.url = req.url;
         result.body = req.body;
