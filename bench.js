@@ -123,7 +123,9 @@ function report(result){
 
 // srcFetch();
 
-if(argv.full && argv.doi && (argv.doi !== true)){
+if(argv.full && argv.doi && (argv.doi != true)){
     console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
     console.log('[ doi ] '.green + argv.doi);
+
+
 }
