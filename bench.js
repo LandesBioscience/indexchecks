@@ -44,7 +44,12 @@ sources.ids = {
     },
     pid: {},
     reu: {},
-    eid: {},
+    eid: {
+        pmc:{
+            urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/PMC[id]/',
+            scrapePattern   : '$(".citation-abbreviation").text().split(".")[0]+$(".citation-flpages").text().substring(1)'
+        }
+    },
     doi: {}
 };
 // default article with alot of ids
@@ -185,35 +190,23 @@ function scrapeId(scrape, cb){
 // Use doi to scrape for other ids. store the results. scrape for status at various indices
 // if(argv.full && argv.doi && (argv.doi != true)){ 
     console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
-
     var article = {};
     article.doi = '10.4161/biom.25414';
 
     //scrape pmc for pmid
     // fetchId(article, 'pmc','doi', scrapeId);
 
-
     async.series({
         pmc: function(cb){ 
             fetchId(article, 'pmc','doi', cb);
         },
         eid: function(cb){ 
-            fetchId(article, 'eid','doi', cb);
-        },
-        pmi: function(cb){ 
-            fetchId(article, 'pmi','doi', cb);
-        },
-        pid: function(cb){ 
-            fetchId(article, 'pmc','doi', cb);
+            article.pmc = result.pmc;
+            fetchId(article, 'eid','pmc', cb);
         }
-    
     },
     function (err, results){
       console.log("So now we march forward".red);
       console.log(util.inspect(results));
     });
-    
-    
-    
-    
 // }
