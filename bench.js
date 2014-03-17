@@ -32,6 +32,13 @@ sources = {
             scrapePattern   : '$(".accid").text().substring(3)'
         }
     },
+    wormbase: {
+        type: 'status',
+        pmi: {
+            urlPatter      : 'wormbase.org/search/paper/[id]',
+            scrapePattern   : '("#overview-content .field-content").first().text()'
+        }
+    },
     reuters: {
         type: 'status',
         reu: {
@@ -183,17 +190,15 @@ function scrapeResponse(scrape, cb){
         console.log(eval(String(scrape.scrapePattern)));
     };
     // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
-    console.log(util.inspect(scrape.type));
     if(scrape.match){
         if(scrape.type == 'status'){
-            console.log("TREATIBG AS A STATUS SCRAPE");
             if(scrape.match = scrape.article[scrape.scrapeKey]){
                 scrape.result = true;
             } else {
                 scrape.result = false;
             }
         } else {
-            console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);
+            if(argv.v){console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);}
             // Send it off to the db to save.
             scrape.result = scrape.match;
         }
@@ -217,6 +222,9 @@ function scrapeResponse(scrape, cb){
 if(argv.full){
     var article = {};
     article.doi = argv.doi || '10.4161/biom.25414';
+    article.save = function(){
+      console.log("Do our save here or something");
+    }
 
     //scrape pmc for pmid
     // fetchId(article, 'pmc','doi', scrapeId);
@@ -230,16 +238,20 @@ if(argv.full){
         pmi: function(cb){ 
             fetch(article, 'pmi','eid', cb);
         },
-        statusPubmed: function(cb){
+        pubmed: function(cb){
             fetch(article, 'pubmed', 'pmi', cb);
         },
-        statusPmcentral: function(cb){
+        pmcentral: function(cb){
             fetch(article, 'pmcentral', 'pmc', cb);
         }
     },
-    function (err, results){
+    function writeResutls(err, results){
       console.log("So now we march forward".red);
-      console.log(util.inspect(results).blue);
+      for (key in results){
+          article[key] = results[key];
+      }
+      article.save();
+      console.log(util.inspect(article).blue);
       if(err){console.log(err.red);}
     });
 }
