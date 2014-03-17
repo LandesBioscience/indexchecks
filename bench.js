@@ -111,6 +111,7 @@ function srcScrape(req){
         console.log(util.inspect(req.err));
     }
 }
+
 function report(result){
     console.log("[ match results ] ".blue + result.match.green);
     if (!argv.v && !(argv.urlPattern || argv.id || argv.url || argv.scrape)){ console.log("[ Or..... invoke with -v to see how that result was generate. ;-P ]".grey);}
@@ -121,11 +122,77 @@ function report(result){
     if (argv.b) { console.log(html.prettyPrint(result.body));}
 }
 
-// srcFetch();
+function fetchId(article, scrapeTarget, scrapeKey, cb){
+    var scrape = sources.ids[scrapeTarget][scrapeKey];
+    scrape.scrapeTarget = scrapeTarget;
+    var token = new RegExp("\\[id\\]");
+    scrape.url = scrape.urlPattern.replace( token, article[scrapeKey] );
+    scrape.url = 'http://' + scrape.url;
 
-if(argv.full && argv.doi && (argv.doi != true)){
-    console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
-    console.log('[ doi ] '.green + argv.doi);
+    if(argv.v) { console.log("[  urlPattern   ] ".blue + scrape.urlPattern.green); }
+    if(argv.v) { console.log("[      id       ] ".blue + scrapeKey.green); }
+    if(argv.v) { console.log("[      url      ] ".blue + scrape.url.green); }
 
-
+    request(String(scrape.url), function(err, res, body){
+        if(argv.v) { console.log("[ Fetching url  ] ".yellow); }
+        scrape.err = err;
+        scrape.res = res;
+        scrape.body = body;
+        cb(article, scrape);
+    });
 }
+
+function scrapeId(article, scrape, cb){
+
+    if (!scrape.error && scrape.res){
+        var result = {};
+        if(argv.v) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
+
+        $ = cheerio.load(scrape.body);
+        var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
+        $('body').append(scrapeWarning);
+        // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
+        // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
+        result.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+        if(argv.v) { console.log("[ scraping resp ] ".yellow); }
+        if (!result.match){
+            console.log("[error]".red + " could not generate  matchResult in srcScrape()");
+            console.log(String(scrape.scrapePattern));
+            console.log(eval(String(scrape.scrapePattern)));
+        };
+        // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
+
+        if(result.match){
+            console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + result.match.yellow);
+            article[scrape.scrapeTarget] = result.match;
+            // Send it off to the db to save.
+            
+            // launch the next task.
+        } else {
+            console.log("There seems to be an error scraping ".red + scrape.scrapeTarget);
+        }
+        report(result);
+        // get the success or failure and write to the db
+        // need to record datetime and maybe an error message?
+    } else {
+        console.log("error in scrapeResults(), ".red);
+        console.log(util.inspect(scrape.err));
+    }
+}
+
+
+
+// InitialScrape
+// one stop controller for the initial scrape
+// Going to be a series of scrapes, starting with a doi.
+//
+// Use doi to scrape for other ids. store the results. scrape for status at various indices
+// if(argv.full && argv.doi && (argv.doi != true)){ 
+    console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
+
+    var article = {};
+    article.doi = '10.4161/biom.25414';
+
+    //scrape pmc for pmid
+    fetchId(article, 'pmc','doi', scrapeId);
+// }
