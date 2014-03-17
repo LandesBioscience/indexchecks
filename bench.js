@@ -13,14 +13,16 @@ var request = request.defaults(
 
 var sources = {};
 //default status sources
-sources.statuses = {
+sources = {
     pubmed: {
+        type: 'status',
         pmi: {
-            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/[id]',
-            scrapePattern   : '$("#maincontent .rprt .details ").text()'
+            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/[id]?report=docsum',
+            scrapePattern   : '$(".rprtid dd").first().text()'
         }
     },
     pmcentral:    {
+        type: 'status',
         doi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
             scrapePattern   : '$("#maincontent .doi").text().substring(5)'
@@ -31,29 +33,34 @@ sources.statuses = {
         }
     },
     reuters: {
+        type: 'status',
         reu: {
             urlPattern      : 'thomsonreuters.com/is-difficult-to-scrape/[id]',
             scrapePattern   : '$("#magical-id .status-class")'
         }
     },
-
-};
-sources.ids = {
     pmi: {
+        type: 'id',
         eid: {
             urlPattern: 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
             scrapePattern: '$(".rprt .title a").attr("href").substring(8)'
              }
     },
     pmc: {  // info for scraping to find an article's pmc id
+        type: 'id',
         doi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
             scrapePattern   : '$(".rprtid dd").text().substring(3)'
         }
     },
-    pid: {},
-    reu: {},
+    pid: {
+        type: 'id',
+    },
+    reu: {
+        type: 'id',
+    },
     eid: {
+        type: 'id',
         pmc:{
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/PMC[id]/',
             scrapePattern   : '$(".citation-abbreviation").text().split(".")[0]+$(".citation-flpages").text().substring(1).split(".")[0]'
@@ -134,10 +141,12 @@ function report(result){
     if (argv.b) { console.log(html.prettyPrint(result.body));}
 }
 
-function fetchId(article, scrapeTarget, scrapeKey, cb){
-    var scrape = sources.ids[scrapeTarget][scrapeKey];
+function fetch(article, scrapeTarget, scrapeKey, cb){
+    var scrape = sources[scrapeTarget][scrapeKey];
+    scrape.type = sources[scrapeTarget].type;
     if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
     scrape.scrapeTarget = scrapeTarget;
+    scrape.scrapeKey = scrapeKey;
     var token = new RegExp("\\[id\\]");
     scrape.url = scrape.urlPattern.replace( token, article[scrapeKey] );
     scrape.url = 'http://' + scrape.url;
@@ -152,15 +161,14 @@ function fetchId(article, scrapeTarget, scrapeKey, cb){
             scrape.res = res;
             scrape.body = body;
             scrape.article = article;
-            scrapeId(scrape, cb);
+            scrapeResponse(scrape, cb);
         } else {
           cb(err, null);
         }
     });
 }
 
-function scrapeId(scrape, cb){
-    var result = {};
+function scrapeResponse(scrape, cb){
     //if(argv.v) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
 
     $ = cheerio.load(scrape.body);
@@ -168,21 +176,29 @@ function scrapeId(scrape, cb){
     $('body').append(scrapeWarning);
     // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
     // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
-    result.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
-    if (!result.match){
-        console.log("[error]".red + " could not generate  matchResult in srcScrape()");
-        console.log(String(scrape.scrapePattern));
+    scrape.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+    if (!scrape.match){
+        console.log("[error]".red + " could not generate  matchResult in scrapeResponse()");
+        console.log(util.inspect(scrape.article));
         console.log(eval(String(scrape.scrapePattern)));
     };
     // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
-
-    if(result.match){
-        console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + result.match.yellow);
-        scrape.article[scrape.scrapeTarget] = result.match;
-        // Send it off to the db to save.
-        
-        // launch the next task.
-        cb(null, result.match);
+    console.log(util.inspect(scrape.type));
+    if(scrape.match){
+        if(scrape.type == 'status'){
+            console.log("TREATIBG AS A STATUS SCRAPE");
+            if(scrape.match = scrape.article[scrape.scrapeKey]){
+                scrape.result = true;
+            } else {
+                scrape.result = false;
+            }
+        } else {
+            console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);
+            // Send it off to the db to save.
+            scrape.result = scrape.match;
+        }
+        scrape.article[scrape.scrapeTarget] = scrape.result;
+        cb(null, scrape.result);
     } else {
         console.log("There seems to be an error scraping ".red + scrape.scrapeTarget);
     }
@@ -206,19 +222,19 @@ if(argv.full){
     // fetchId(article, 'pmc','doi', scrapeId);
     async.series({
         pmc: function(cb){ 
-            fetchId(article, 'pmc','doi', cb);
+            fetch(article, 'pmc','doi', cb);
         },
         eid: function(cb){ 
-            fetchId(article, 'eid','pmc', cb);
+            fetch(article, 'eid','pmc', cb);
         },
         pmi: function(cb){ 
-            fetchId(article, 'pmi','eid', cb);
+            fetch(article, 'pmi','eid', cb);
         },
         statusPubmed: function(cb){
-            fetchStatus(article, 'pubmed', 'pmi', cb);
+            fetch(article, 'pubmed', 'pmi', cb);
         },
         statusPmcentral: function(cb){
-            fetchStatus(article, 'pmcentral', 'pmc', cb);
+            fetch(article, 'pmcentral', 'pmc', cb);
         }
     },
     function (err, results){
