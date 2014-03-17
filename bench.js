@@ -2,6 +2,7 @@
 var argv = require('minimist')(process.argv.slice(2));
 var fs = require('fs');
 var util = require('util');
+var async = require('async');
 var request = require('request');
 var cheerio = require('cheerio');
 var colors = require('colors');
@@ -94,11 +95,8 @@ function srcScrape(req){
         // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
         // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
         var matchResult = eval(String(scrape)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
-        if(argv.v) { console.log("[ scraping resp ] ".yellow); }
         if (!matchResult){
             console.log("[error]".red + " could not generate  matchResult in srcScrape()");
-            console.log(String(scrape));
-            console.log(eval(String(scrape)));
         };
         result.url = req.url;
         result.body = req.body;
@@ -135,49 +133,47 @@ function fetchId(article, scrapeTarget, scrapeKey, cb){
 
     request(String(scrape.url), function(err, res, body){
         if(argv.v) { console.log("[ Fetching url  ] ".yellow); }
-        scrape.err = err;
-        scrape.res = res;
-        scrape.body = body;
-        cb(article, scrape);
+        if(!err){
+            scrape.res = res;
+            scrape.body = body;
+            scrape.article = article;
+            scrapeId(scrape, cb);
+        } else {
+          cb(err, null);
+        }
     });
 }
 
-function scrapeId(article, scrape, cb){
+function scrapeId(scrape, cb){
+    var result = {};
+    //if(argv.v) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
 
-    if (!scrape.error && scrape.res){
-        var result = {};
-        if(argv.v) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
+    $ = cheerio.load(scrape.body);
+    var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
+    $('body').append(scrapeWarning);
+    // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
+    // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
+    result.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+    if (!result.match){
+        console.log("[error]".red + " could not generate  matchResult in srcScrape()");
+        console.log(String(scrape.scrapePattern));
+        console.log(eval(String(scrape.scrapePattern)));
+    };
+    // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
 
-        $ = cheerio.load(scrape.body);
-        var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
-        $('body').append(scrapeWarning);
-        // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
-        // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
-        result.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
-        if(argv.v) { console.log("[ scraping resp ] ".yellow); }
-        if (!result.match){
-            console.log("[error]".red + " could not generate  matchResult in srcScrape()");
-            console.log(String(scrape.scrapePattern));
-            console.log(eval(String(scrape.scrapePattern)));
-        };
-        // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
-
-        if(result.match){
-            console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + result.match.yellow);
-            article[scrape.scrapeTarget] = result.match;
-            // Send it off to the db to save.
-            
-            // launch the next task.
-        } else {
-            console.log("There seems to be an error scraping ".red + scrape.scrapeTarget);
-        }
-        report(result);
-        // get the success or failure and write to the db
-        // need to record datetime and maybe an error message?
+    if(result.match){
+        console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + result.match.yellow);
+        scrape.article[scrape.scrapeTarget] = result.match;
+        // Send it off to the db to save.
+        
+        // launch the next task.
+        cb(null, result.match);
     } else {
-        console.log("error in scrapeResults(), ".red);
-        console.log(util.inspect(scrape.err));
+        console.log("There seems to be an error scraping ".red + scrape.scrapeTarget);
     }
+    return;
+    // get the success or failure and write to the db
+    // need to record datetime and maybe an error message?
 }
 
 
@@ -194,5 +190,30 @@ function scrapeId(article, scrape, cb){
     article.doi = '10.4161/biom.25414';
 
     //scrape pmc for pmid
-    fetchId(article, 'pmc','doi', scrapeId);
+    // fetchId(article, 'pmc','doi', scrapeId);
+
+
+    async.series({
+        pmc: function(cb){ 
+            fetchId(article, 'pmc','doi', cb);
+        },
+        eid: function(cb){ 
+            fetchId(article, 'eid','doi', cb);
+        },
+        pmi: function(cb){ 
+            fetchId(article, 'pmi','doi', cb);
+        },
+        pid: function(cb){ 
+            fetchId(article, 'pmc','doi', cb);
+        }
+    
+    },
+    function (err, results){
+      console.log("So now we march forward".red);
+      console.log(util.inspect(results));
+    });
+    
+    
+    
+    
 // }
