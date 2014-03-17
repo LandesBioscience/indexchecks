@@ -15,15 +15,19 @@ var sources = {};
 //default status sources
 sources.statuses = {
     pubmed: {
-        eid: {
-            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
+        pmi: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/[id]',
             scrapePattern   : '$("#maincontent .rprt .details ").text()'
         }
     },
-    pmc:    {
+    pmcentral:    {
         doi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
             scrapePattern   : '$("#maincontent .doi").text().substring(5)'
+        },
+        pmc: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/[id]/',
+            scrapePattern   : '$(".accid").text().substring(3)'
         }
     },
     reuters: {
@@ -35,7 +39,12 @@ sources.statuses = {
 
 };
 sources.ids = {
-    pmi: {},
+    pmi: {
+        eid: {
+            urlPattern: 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
+            scrapePattern: '$(".rprt .title a").attr("href").substring(8)'
+             }
+    },
     pmc: {  // info for scraping to find an article's pmc id
         doi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
@@ -47,7 +56,7 @@ sources.ids = {
     eid: {
         pmc:{
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/PMC[id]/',
-            scrapePattern   : '$(".citation-abbreviation").text().split(".")[0]+$(".citation-flpages").text().substring(1)'
+            scrapePattern   : '$(".citation-abbreviation").text().split(".")[0]+$(".citation-flpages").text().substring(1).split(".")[0]'
         }
     },
     doi: {}
@@ -127,6 +136,7 @@ function report(result){
 
 function fetchId(article, scrapeTarget, scrapeKey, cb){
     var scrape = sources.ids[scrapeTarget][scrapeKey];
+    if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
     scrape.scrapeTarget = scrapeTarget;
     var token = new RegExp("\\[id\\]");
     scrape.url = scrape.urlPattern.replace( token, article[scrapeKey] );
@@ -188,25 +198,32 @@ function scrapeId(scrape, cb){
 // Going to be a series of scrapes, starting with a doi.
 //
 // Use doi to scrape for other ids. store the results. scrape for status at various indices
-// if(argv.full && argv.doi && (argv.doi != true)){ 
-    console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
+if(argv.full){
     var article = {};
-    article.doi = '10.4161/biom.25414';
+    article.doi = argv.doi || '10.4161/biom.25414';
 
     //scrape pmc for pmid
     // fetchId(article, 'pmc','doi', scrapeId);
-
     async.series({
         pmc: function(cb){ 
             fetchId(article, 'pmc','doi', cb);
         },
         eid: function(cb){ 
-            article.pmc = result.pmc;
             fetchId(article, 'eid','pmc', cb);
+        },
+        pmi: function(cb){ 
+            fetchId(article, 'pmi','eid', cb);
+        },
+        statusPubmed: function(cb){
+            fetchStatus(article, 'pubmed', 'pmi', cb);
+        },
+        statusPmcentral: function(cb){
+            fetchStatus(article, 'pmcentral', 'pmc', cb);
         }
     },
     function (err, results){
       console.log("So now we march forward".red);
-      console.log(util.inspect(results));
+      console.log(util.inspect(results).blue);
+      if(err){console.log(err.red);}
     });
-// }
+}
