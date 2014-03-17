@@ -6,31 +6,39 @@ var request = require('request');
 var cheerio = require('cheerio');
 var colors = require('colors');
 var html = require('html');
-
 var request = request.defaults(
     {jar: true}
 );
 
-//default id sources
-var idSources = {
-    doi: "Sorry, this one's where we start for now"
-
-};
 var sources = {};
 //default status sources
 sources.statuses = {
-    pubmed:   ["http://www.ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum", "eid", '$("#maincontent .rprt .details ").text()'],
-    pmc:  ["http://www.ncbi.nlm.nih.gov/pmc/?term=[id]", "doi", '$("#maincontent .doi").text().substring(5)'],
-    reuters: ["http://thomsonreuters.com/is-difficult-to-scrape/[id]/", "reutid", null]
+    pubmed: {
+        eid: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
+            scrapePattern   : '$("#maincontent .rprt .details ").text()'
+        }
+    },
+    pmc:    {
+        doi: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
+            scrapePattern   : '$("#maincontent .doi").text().substring(5)'
+        }
+    },
+    reuters: {
+        reu: {
+            urlPattern      : 'thomsonreuters.com/is-difficult-to-scrape/[id]',
+            scrapePattern   : '$("#magical-id .status-class")'
+        }
+    },
 
 };
 sources.ids = {
     pmi: {},
     pmc: {  // info for scraping to find an article's pmc id
-        {
-          id_key          : 'doi',
-          urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
-          scrapePattern   : '$(".rprtid dd").text().substring(3)'
+        doi: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
+            scrapePattern   : '$(".rprtid dd").text().substring(3)'
         }
     },
     pid: {},
@@ -113,4 +121,9 @@ function report(result){
     if (argv.b) { console.log(html.prettyPrint(result.body));}
 }
 
-srcFetch();
+// srcFetch();
+
+if(argv.full && argv.doi && (argv.doi !== true)){
+    console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
+    console.log('[ doi ] '.green + argv.doi);
+}
