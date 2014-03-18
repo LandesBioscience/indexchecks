@@ -22,7 +22,7 @@
   "devDependencies": {
     "colors": "~0.6.2",
     "minimist": "0.0.8",
-    "html": "0.0.7",
+    "html": "0.0.7"
   },
   "engines": {
     "node": "0.10.x"

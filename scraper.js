@@ -154,7 +154,7 @@ function scrapeResponse(scrape, cb){
 
 exports.initialScrape = function(doi, cb){
     var article = {};
-    article.doi = argv.doi || '10.4161/biom.25414';
+    article.doi = doi || '10.4161/biom.25414';
     article.save = function(){
       cliPut("Do our save here or something");
     };
@@ -178,6 +178,7 @@ exports.initialScrape = function(doi, cb){
     },
     function writeResults(err, results){
       var ret = err || results;
+      ret.doi = doi;
       cb(ret);
     });
 };

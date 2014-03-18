@@ -3,17 +3,13 @@
 // TODO: improve error logging, complete crape path, consolidate scrape code into a scraper object
 //
 
-var util           = require('util'),
-    fs             = require('fs'),
-    request        = require('request'),
-    express        = require('express'),
-    mongo          = require('mongodb'),
-    cheerio        = require('cheerio'),
-    colors         = require('colors');
+var util    = require('util'),
+    express = require('express'),
+    mongo   = require('mongodb'),
+    scraper = require('./scraper'),
+    logfmt  = require("logfmt"),
+    colors  = require('colors');
 
-var request = request.defaults(
-  {jar: true}
-);
 
 // Tell mongo to use dev db if none of heroku's environment variables are set
 var mongoUri = process.env.MONGOLAB_URIi              ||
@@ -32,46 +28,22 @@ var exampleArticle = {
     }
 };
 
-var sources = {};
-
-function loadSources(){
-    fs.readFile('sources.json', 'utf8', function (err, data) {
-        if (err) throw err;
-        sources = JSON.parse(data);
-    });
-};
-
-function Scraper(article){
-    this.article = article;
-    this.sources = {};
-};
-
-function Source(sourceName){
-    this.status = "pending";
-    this.urlPattern = sources[sourceName][0];
-    this.key = sources[sourceName][1];
-    this.scrapePattern  = sources[sourceName][2];
-}
-
 // Trying out the new Object.create syntax available in ES5
 var Article = {
     save: function(){
-        var junk = {whatever: "screw you, i do what i want!"};
-        console.log("[article.save()]".green);
-        console.log(util.inspect(this).grey);
+        var junkFunction = {whatever: "screw you, i do what i want!"};
         saveArticle(this);
     },
     init:  function(){
         saveArticle(this);     // Write obj to db
-        pmcFetch(this); // start scraper chain
     }
 };
 
 // Helper functions
 function cb(data){
     // This is just a placeholder Callback
-    console.log("[cb()]".red + util.inspect(data).blue)
-};
+    console.log("[cb()]".red + util.inspect(data).blue);
+}
 
 
 function articleCreate(doi, res, cb){
@@ -79,10 +51,9 @@ function articleCreate(doi, res, cb){
     var article = Object.create(Article);
     article.doi = doi;
     article.init();
-    article.save();
-    var obj = article; // trying to be verbose about it, maybe a waste
-    obj.mesage = "New article created, fetching status .";
-    res.json(200, obj);
+    article = article.save(); // should get back the mongo record id... i'm thinkin?
+    article.mesageForMatthew = "New article created, fetching status .";
+    res.json(200, article);
 }
 
 function articleFetch(params, res, cb){
@@ -183,7 +154,7 @@ function scrapeResults(obj, cb){
         var status = eval(String(pattern)) || false;
         if (!status){
           console.log(util.inspect(eval(String(pattern))));
-        };
+        }
         var bits = [ obj.article.doi + "<---", "[ " + obj.source + " ]", obj.response.statusCode + ": ", " " + status ];
         console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
         console.log(util.inspect(obj.article));
@@ -231,10 +202,12 @@ app.post('/article', function(req, res){
 
 app.post('/article/add', function(req, res){
     if( req.body.doi ){
-        var doi = req.body.doi;
-        articleCreate(req.body.doi, res, cb); 
+        scraper.initialScrape(req.body.doi, function(article){
+            cb(article);
+            res.json(200, article);
+        });
     } else if( req.body.dois) { 
-        var dois = req.body['dois'];
+        var dois = req.body.dois;
         for (var i = 0; i < dois.length; i++ ){
             console.log("create  article " + dois[i]);
             articleCreate(dois[i], res, cb);
@@ -245,6 +218,5 @@ app.post('/article/add', function(req, res){
     }
 });
 
-loadSources();
-app.listen(1337);
+app.listen(process.env.PORT || 1337);
 // articleGetStatus(exampleArticle.ids.lid);
