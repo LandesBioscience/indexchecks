@@ -1,10 +1,10 @@
 // server.js
 // Listen for requests and spit out json.
-
-var util = require('util');
-var http = require ('http');
-var express = require('express');
-var mongo = require('mongodb');
+var dev     = process.env.NODE_ENV,
+    util    = require('util'),
+    http    = require ('http'),
+    express = require('express'),
+    mongo   = require('mongodb');
 
 // Tell mongo to use dev db if none of heroku's environment variables are set
 var mongoUri = process.env.MONGOLAB_URI   ||
@@ -24,7 +24,7 @@ var exampleArticle = {
 };
 
 function Article(idKey, idValue){
-    this.ids = {}
+    this.ids = {};
     this.ids[idKey] = idValue;
 }
 

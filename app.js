@@ -70,8 +70,8 @@ var Article = {
 // Helper functions
 function cb(data){
     // This is just a placeholder Callback
-    console.log("[cb()]".red + util.inspect(data).blue)
-};
+    console.log("[cb()]".red + util.inspect(data).blue);
+}
 
 
 function articleCreate(doi, res, cb){
@@ -81,7 +81,7 @@ function articleCreate(doi, res, cb){
     article.init();
     article.save();
     var obj = article; // trying to be verbose about it, maybe a waste
-    obj.mesage = "New article created, fetching status .";
+    obj.mesage = "New article created, fetching initial status .";
     res.json(200, obj);
 }
 
@@ -234,7 +234,7 @@ app.post('/article/add', function(req, res){
         var doi = req.body.doi;
         articleCreate(req.body.doi, res, cb); 
     } else if( req.body.dois) { 
-        var dois = req.body['dois'];
+        var dois = req.body.dois;
         for (var i = 0; i < dois.length; i++ ){
             console.log("create  article " + dois[i]);
             articleCreate(dois[i], res, cb);
@@ -246,5 +246,5 @@ app.post('/article/add', function(req, res){
 });
 
 loadSources();
-app.listen(1337);
+app.listen(process.env.PORT || 1337);
 // articleGetStatus(exampleArticle.ids.lid);
