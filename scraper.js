@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 var dev = (process.env.NODE_ENV == 'development'),
-    async = require('async'),
+    async   = require('async'),
     request = require('request'),
     cheerio = require('cheerio'),
     request = request.defaults( {jar: true} );
 
 if (dev) {
-    var argv = require('minimist')(process.argv.slice(2)),
-    util = require('util'),
-    colors = require('colors'),
-    html = require('html');
+    var argv    = require('minimist')(process.argv.slice(2)),
+        util    = require('util'),
+        colors  = require('colors'),
+        html    = require('html');
 }
 
 var sources = {};
@@ -82,7 +82,7 @@ function cliPut(string){
     if (dev && argv.v) { console.log(String(string)); }
 }
 
-function fetch(article, scrapeTarget, scrapeKey, cb){
+exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
     var scrape = sources[scrapeTarget][scrapeKey];
     scrape.type = sources[scrapeTarget].type;
     if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
@@ -152,7 +152,7 @@ function scrapeResponse(scrape, cb){
 // 2. Scrape for status at various indices.
 // 3. Process the results into a new Article object.
 
-if(argv.init){
+exports.initialScrape = function(doi, cb){
     var article = {};
     article.doi = argv.doi || '10.4161/biom.25414';
     article.save = function(){
@@ -160,29 +160,24 @@ if(argv.init){
     };
 
     async.series({
-        pmc: function(cb){ 
-            fetch(article, 'pmc','doi', cb);
+        pmc: function(cbb){ 
+            exports.fetch(article, 'pmc','doi', cbb);
         },
-        eid: function(cb){ 
-            fetch(article, 'eid','pmc', cb);
+        eid: function(cbb){ 
+            exports.fetch(article, 'eid','pmc', cbb);
         },
-        pmi: function(cb){ 
-            fetch(article, 'pmi','eid', cb);
+        pmi: function(cbb){ 
+            exports.fetch(article, 'pmi','eid', cbb);
         },
-        pubmed: function(cb){
-            fetch(article, 'pubmed', 'pmi', cb);
+        pubmed: function(cbb){
+            exports.fetch(article, 'pubmed', 'pmi', cbb);
         },
-        pmcentral: function(cb){
-            fetch(article, 'pmcentral', 'pmc', cb);
+        pmcentral: function(cbb){
+            exports.fetch(article, 'pmcentral', 'pmc', cbb);
         }
     },
-    function writeResutls(err, results){
-      console.log("So now we march forward".red);
-      for (var key in results){
-          article[key] = results[key];
-      }
-      article.save();
-      if(dev){ console.log(util.inspect(article).blue); }
-      if(err){console.log(err.red);}
+    function writeResults(err, results){
+      var ret = err || results;
+      cb(ret);
     });
-}
+};
