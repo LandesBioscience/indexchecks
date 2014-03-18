@@ -14,7 +14,7 @@ var util    = require('util'),
 // Tell mongo to use dev db if none of heroku's environment variables are set
 var mongoUri = process.env.MONGOLAB_URIi              ||
                process.env.MONGOHQ_URL                ||
-               'mongodb://localhost/indexingQueues';
+               'mongodb://localhost/idx';
 
 // Just some data for an article to keep on hand
 var exampleArticle = {
@@ -75,15 +75,17 @@ function articleFetch(params, res, cb){
                 res.json(200, article);
             });
         });
-    })
+    });
 }
 
-function saveArticle(article){
+function saveArticle(article, res){ // Not sure How this should act... should the server immediately respond to an article save with the saved article, or should it respons with a success message or what?
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(err, collection) {
-            collection.update({doi: article.doi}, article, {upsert: true}, function (err, resp){
-                if(err){console.log('There was an error saving the article'.red);}
-            });
+          console.log(util.inspect(article));
+            article = collection.findAndModify({doi: article.doi}, [], article, {new:true, upsert:true}, function(err, doc){
+                res.json(200, doc);
+                db.close();
+            } );
         });
     });
 }
@@ -91,7 +93,7 @@ function saveArticle(article){
 function startScan(article){
     article.ids = exampleArticle.ids;
     // console.log(util.inspect(article));
-    for(source in article.sources){
+    for(var source in article.sources){
         launchScraper(article, source, scrapeResults);
     }
 }
@@ -203,8 +205,7 @@ app.post('/article', function(req, res){
 app.post('/article/add', function(req, res){
     if( req.body.doi ){
         scraper.initialScrape(req.body.doi, function(article){
-            cb(article);
-            res.json(200, article);
+            saveArticle(article, res);
         });
     } else if( req.body.dois) { 
         var dois = req.body.dois;
