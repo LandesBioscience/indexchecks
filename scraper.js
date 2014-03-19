@@ -13,7 +13,7 @@ if (dev) {
 }
 
 var sources = {};
-
+argv.v = true;
 //default status sources
 sources = {
     pubmed: {
@@ -117,7 +117,13 @@ function scrapeResponse(scrape, cb){
     $('body').append(scrapeWarning);
     // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
     // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
-    scrape.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+    try{
+        scrape.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+    }
+    catch(e){
+        console.log("having a problem with the eval for article: ".red + util.inspect(scrape.article).grey);
+        console.log(util.inspect(e).yellow);
+    }
 
     if (!scrape.match){
         cliPut("[error]".red + " could not generate  matchResult in scrapeResponse()");
@@ -185,9 +191,9 @@ exports.initialScrape = function(doi, cb){
               delete results[prop];
           }
       }
+      stat.error = err;
       results.stats = {};
       results.stats[new Date()] = stat;
-      results.stats.error = err;
       var ret = err || results;
       ret.doi = doi;
       cb(ret);

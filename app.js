@@ -32,7 +32,9 @@ var exampleArticle = {
 var Article = {
     save: function(){
         var junkFunction = {whatever: "screw you, i do what i want!"};
-        saveArticle(this);
+        saveArticle(this, function(err, doc){
+            res.json(200, doc);
+        });
     },
     init:  function(){
         saveArticle(this);     // Write obj to db
@@ -78,14 +80,27 @@ function articleFetch(params, res, cb){
     });
 }
 
-function saveArticle(article, res){ // Not sure How this should act... should the server immediately respond to an article save with the saved article, or should it respons with a success message or what?
+function newArticle(article, cb){ // Not sure How this should act... should the server immediately respond to an article save with the saved article, or should it respons with a success message or what?
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(err, collection) {
           console.log(util.inspect(article));
-            article = collection.findAndModify({doi: article.doi}, [], article, {new:true, upsert:true}, function(err, doc){
-                res.json(200, doc);
-                db.close();
-            } );
+            collection.findOne({doi: article.doi}, {}, function(err, doc){
+                console.log("[newArticle() -- checking if article exists]".green);
+                console.log(util.inspect(doc).blue);
+                console.log(util.inspect(err).yellow);
+                if(!doc){
+                   doc = article;  // This is a new article. just using findAndModify because it returns the saved object
+                } else {
+                    // There is already an entry for this article, we're just going to add our most recent scrape data and save/respond_with that
+                    for (var stat in article.stats){
+                       doc.stats[stat] = article.stats[stat];
+                    }
+                }
+                collection.findAndModify({doi: article.doi}, [], doc, {new:true, upsert:true}, function(err, doc){
+                    cb(err, doc);
+                    db.close();
+                });
+            });
         });
     });
 }
@@ -169,6 +184,10 @@ function scrapeResults(obj, cb){
     }
 }
 
+function newArticles(err, doc){
+
+}
+
 // Express code for routing etc.
 app = express();
 app.use(express.static(__dirname + '/public'));   // set the static files location /public/img will be /img for users
@@ -205,14 +224,20 @@ app.post('/article', function(req, res){
 app.post('/article/add', function(req, res){ // post a doi or array of doi's to be added
     if( req.body.doi ){
         scraper.initialScrape(req.body.doi, function(article){
-            saveArticle(article, res);
+            newArticle(article, function(err, doc){
+                res.json(200, doc);
+            });
         });
     } else if( req.body.dois) { 
         var dois = req.body.dois;
         for (var i = 0; i < dois.length; i++ ){
-            console.log("create  article " + dois[i]);
-            articleCreate(dois[i], res, cb);
+            scraper.initialScrape(dois[i], function(article){
+                newArticle(article, function(err, doc){
+                    console.log("[generating new article] ".green + doc.doi.blue);
+                });
+            });
         }
+        res.json(200, {messageToMatthew: 'We\'ll get on that right away!'});
     } else {
        var obj = {"error": "malformed json object in request: expecting doi or array of dois"};
        res.json(400, obj);
