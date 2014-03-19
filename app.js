@@ -78,7 +78,7 @@ function articleFetch(params, res, cb){
                 // console.log(util.inspect(article));
                 // search for existing article or create new one.
                 if(!article){
-                    var article = new Article(idKey, idValue);
+                    article = new Article(idKey, idValue);
                     saveArticle(article);
                 }
                 res.json(200, article);
@@ -185,20 +185,24 @@ app.post('/article', function(req, res){
     // This should be rewritten to accept a json object with one or more ids , and attempt to find a matching article in the db.
     // working on article add and scraping first
     if( req.body.doi ){
-        var doi = req.body.doi;
-        articleFetch(req.body.doi, res, cb); 
+        queryArticles(function(articles){
+            articles.findOne({ doi : req.body.doi }, function(err, doc){
+                var response = !err ? doc : err;
+                res.json(200, response);
+            });
+        });
     } else if( req.body.dois) { 
-        var dois = req.body.dois;
-        for (var i = 0; i < dois.length; i++ ){
-            console.log("create  article " + dois[i]);
-            articleFetch(dois[i], res, cb);
-        }
+        queryArticles(function(articles){
+           articles.find({ doi: { $in : req.body.dois }}, function(err, doc){
+               doc.toArray(function(err, docs){
+                  res.json(200, docs);
+               });
+           });
+        });
     } else {
         var obj = {message: "malformed json object in request: expecting doi or array of dois"};
         res.json(400, obj);
     }
-    req.body.message = "Is there an echo in here?";
-    res.json(200, req.body); // echoing for now
 });
 
 app.post('/article/add', function(req, res){ // post a doi or array of doi's to be added
