@@ -121,7 +121,7 @@ function scrapeResponse(scrape, cb){
         scrape.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
     }
     catch(e){
-        console.log("having a problem with the eval for article: ".red + util.inspect(scrape.article).grey);
+        console.log("having a problem with the eval for article: ".red + String(scrape.article.doi).grey);
         if(dev){console.log(util.inspect(e).yellow);}
     }
 
