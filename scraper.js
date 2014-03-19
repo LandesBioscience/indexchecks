@@ -10,10 +10,10 @@ if (dev) {
         util    = require('util'),
         colors  = require('colors'),
         html    = require('html');
+    argv.v = true;
 }
 
 var sources = {};
-argv.v = true;
 //default status sources
 sources = {
     pubmed: {
