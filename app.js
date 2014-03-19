@@ -185,19 +185,19 @@ app.get('/article', function(req, res){
 app.post('/article', function(req, res){
     // This should be rewritten to accept a json object with one or more ids , and attempt to find a matching article in the db.
     // working on article add and scraping first
-    // if( req.body.doi ){
-    //     var doi = req.body.doi;
-    //     articleFetch(req.body.doi, res, cb); 
-    // } else if( req.body.dois) { 
-    //     var dois = req.body['dois'];
-    //     for (var i = 0; i < dois.length; i++ ){
-    //         console.log("create  article " + dois[i]);
-    //         articleFetch(dois[i], res, cb);
-    //     }
-    // } else {
-    //     var obj = {message: "malformed json object in request: expecting doi or array of dois"}
-    //     res.json(400, obj);
-    // }
+    if( req.body.doi ){
+        var doi = req.body.doi;
+        articleFetch(req.body.doi, res, cb); 
+    } else if( req.body.dois) { 
+        var dois = req.body.dois;
+        for (var i = 0; i < dois.length; i++ ){
+            console.log("create  article " + dois[i]);
+            articleFetch(dois[i], res, cb);
+        }
+    } else {
+        var obj = {message: "malformed json object in request: expecting doi or array of dois"};
+        res.json(400, obj);
+    }
     req.body.message = "Is there an echo in here?";
     res.json(200, req.body); // echoing for now
 });
