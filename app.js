@@ -202,7 +202,7 @@ app.post('/article', function(req, res){
     res.json(200, req.body); // echoing for now
 });
 
-app.post('/article/add', function(req, res){
+app.post('/article/add', function(req, res){ // post a doi or array of doi's to be added
     if( req.body.doi ){
         scraper.initialScrape(req.body.doi, function(article){
             saveArticle(article, res);
@@ -220,4 +220,3 @@ app.post('/article/add', function(req, res){
 });
 
 app.listen(process.env.PORT || 1337);
-// articleGetStatus(exampleArticle.ids.lid);

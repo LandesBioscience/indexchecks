@@ -177,6 +177,17 @@ exports.initialScrape = function(doi, cb){
         }
     },
     function writeResults(err, results){
+      // massage these results to create the status object
+      var stat = {};
+      for (var prop in results){
+          if(Object.prototype.toString.call(results[prop]) == '[object Boolean]'){
+              stat[prop] =  results[prop];
+              delete results[prop];
+          }
+      }
+      results.stats = {};
+      results.stats[new Date()] = stat;
+      results.stats.error = err;
       var ret = err || results;
       ret.doi = doi;
       cb(ret);
