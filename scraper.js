@@ -122,7 +122,7 @@ function scrapeResponse(scrape, cb){
     }
     catch(e){
         console.log("having a problem with the eval for article: ".red + util.inspect(scrape.article).grey);
-        console.log(util.inspect(e).yellow);
+        if(dev){console.log(util.inspect(e).yellow);}
     }
 
     if (!scrape.match){
