@@ -127,7 +127,7 @@ function scrapeResponse(scrape, cb){
 
     if (!scrape.match){
         cliPut("[error]".red + " could not generate  matchResult in scrapeResponse()");
-        cliPut(util.inspect(scrape.article));
+        if(dev){cliPut(util.inspect(scrape.article));}
     }
     // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
     if(scrape.match){
