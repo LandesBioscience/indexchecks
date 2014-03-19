@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 var dev = (process.env.NODE_ENV == 'development'),
+    argv = (dev) ? require('minimist')(process.argv.slice(2)): null,
     async   = require('async'),
     request = require('request'),
     cheerio = require('cheerio'),
     request = request.defaults( {jar: true} );
 
+
 if (dev) {
     var util    = require('util');
         colors  = require('colors'),
         html    = require('html');
-    argv.v = true;
 }
-var argv = (dev) ? require('minimist')(process.argv.slice(2)): null;
 
 var sources = {};
 //default status sources

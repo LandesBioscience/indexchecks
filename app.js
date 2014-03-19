@@ -47,6 +47,13 @@ function cb(data){
     console.log("[cb()]".red + util.inspect(data).blue);
 }
 
+function queryArticles(cb){
+    mongo.Db.connect(mongoUri, function dbConnect(err, db) {
+        db.collection('articles', function dbUse(er, collection) {
+            cb(collection);
+        });
+    });
+}
 
 function articleCreate(doi, res, cb){
     // write article into db and instantiate scrapers
@@ -126,41 +133,7 @@ function launchScraper(article, src, cb){
         cb(article, src, error, response, body);
     });
 }
-function pmcFetch(article){
-    var source = sources['pmc'];
-    // console.log(util.inspect(source));
-    var re = new RegExp("\\[id\\]");
-    var url = source[0];
-    // console.log(util.inspect(article).red);
-    url = url.replace( re, article.oid );
-    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
-    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
-    request(url, function(error, response, body){
-        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
-         pmcScrape(obj);
-    });
-}
 
-function pmcScrape(obj){
-    // I feel like i could bundle some of this info up to keep the params smaller... TODO
-    scrapeResults(obj, pmFetch);
-}
-
-function pmFetch(article){
-    var source = sources['pm'];
-    // console.log(util.inspect(source));
-    var re = new RegExp("\\[id\\]");
-    var url = source[0];
-    // console.log(util.inspect(article).red);
-    url = url.replace( re, article.oid );
-    // var bits = [ article.oid + "--->", "[ " + source + " ]", " " + url ];
-    // console.log(bits[0].white + bits[1].yellow + bits[2].blue ); // What? I want it to look pretty...
-    request(url, function(error, response, body){
-        obj = {};obj.article = article;obj.source = source;obj.error = error;obj.response = response;obj.body = body;
-         // pmcScrape(obj);
-         console.log("end of the line, buddy: pmFetch");
-    });
-}
 
 function scrapeResults(obj, cb){
     if (!obj.error && obj.response){
@@ -184,10 +157,6 @@ function scrapeResults(obj, cb){
     }
 }
 
-function newArticles(err, doc){
-
-}
-
 // Express code for routing etc.
 app = express();
 app.use(express.static(__dirname + '/public'));   // set the static files location /public/img will be /img for users
@@ -199,6 +168,17 @@ app.configure(function (){
 
 app.get('/article', function(req, res){
     // Look in the db and respond with the appropriate article
+});
+
+app.post('/articles/all', function(req, res){
+    queryArticles(function(articles){
+        articles.distinct("doi", function(err, doc){
+            var obj = {};
+            obj.dois = doc;
+            obj.messageToMatthew = 'that should work now.';
+            res.json(200, obj);
+        });
+    });
 });
 
 app.post('/article', function(req, res){
