@@ -3,22 +3,18 @@
 // TODO: improve error logging, complete crape path, consolidate scrape code into a scraper object
 //
 
-var util           = require('util'),
-    fs             = require('fs'),
-    request        = require('request'),
-    express        = require('express'),
-    mongo          = require('mongodb'),
-    cheerio        = require('cheerio'),
-    colors         = require('colors');
+var util    = require('util'),
+    express = require('express'),
+    mongo   = require('mongodb'),
+    scraper = require('./scraper'),
+    logfmt  = require("logfmt"),
+    colors  = require('colors');
 
-var request = request.defaults(
-  {jar: true}
-);
 
 // Tell mongo to use dev db if none of heroku's environment variables are set
 var mongoUri = process.env.MONGOLAB_URIi              ||
                process.env.MONGOHQ_URL                ||
-               'mongodb://localhost/indexingQueues';
+               'mongodb://localhost/idx';
 
 // Just some data for an article to keep on hand
 var exampleArticle = {
@@ -32,38 +28,16 @@ var exampleArticle = {
     }
 };
 
-var sources = {};
-
-function loadSources(){
-    fs.readFile('sources.json', 'utf8', function (err, data) {
-        if (err) throw err;
-        sources = JSON.parse(data);
-    });
-};
-
-function Scraper(article){
-    this.article = article;
-    this.sources = {};
-};
-
-function Source(sourceName){
-    this.status = "pending";
-    this.urlPattern = sources[sourceName][0];
-    this.key = sources[sourceName][1];
-    this.scrapePattern  = sources[sourceName][2];
-}
-
 // Trying out the new Object.create syntax available in ES5
 var Article = {
     save: function(){
-        var junk = {whatever: "screw you, i do what i want!"};
-        console.log("[article.save()]".green);
-        console.log(util.inspect(this).grey);
-        saveArticle(this);
+        var junkFunction = {whatever: "screw you, i do what i want!"};
+        saveArticle(this, function(err, doc){
+            res.json(200, doc);
+        });
     },
     init:  function(){
         saveArticle(this);     // Write obj to db
-        pmcFetch(this); // start scraper chain
     }
 };
 
@@ -79,10 +53,9 @@ function articleCreate(doi, res, cb){
     var article = Object.create(Article);
     article.doi = doi;
     article.init();
-    article.save();
-    var obj = article; // trying to be verbose about it, maybe a waste
-    obj.mesage = "New article created, fetching initial status .";
-    res.json(200, obj);
+    article = article.save(); // should get back the mongo record id... i'm thinkin?
+    article.mesageForMatthew = "New article created, fetching status .";
+    res.json(200, article);
 }
 
 function articleFetch(params, res, cb){
@@ -104,14 +77,29 @@ function articleFetch(params, res, cb){
                 res.json(200, article);
             });
         });
-    })
+    });
 }
 
-function saveArticle(article){
+function newArticle(article, cb){ // Not sure How this should act... should the server immediately respond to an article save with the saved article, or should it respons with a success message or what?
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(err, collection) {
-            collection.update({doi: article.doi}, article, {upsert: true}, function (err, resp){
-                if(err){console.log('There was an error saving the article'.red);}
+          console.log(util.inspect(article));
+            collection.findOne({doi: article.doi}, {}, function(err, doc){
+                console.log("[newArticle() -- checking if article exists]".green);
+                console.log(util.inspect(doc).blue);
+                console.log(util.inspect(err).yellow);
+                if(!doc){
+                   doc = article;  // This is a new article. just using findAndModify because it returns the saved object
+                } else {
+                    // There is already an entry for this article, we're just going to add our most recent scrape data and save/respond_with that
+                    for (var stat in article.stats){
+                       doc.stats[stat] = article.stats[stat];
+                    }
+                }
+                collection.findAndModify({doi: article.doi}, [], doc, {new:true, upsert:true}, function(err, doc){
+                    cb(err, doc);
+                    db.close();
+                });
             });
         });
     });
@@ -120,7 +108,7 @@ function saveArticle(article){
 function startScan(article){
     article.ids = exampleArticle.ids;
     // console.log(util.inspect(article));
-    for(source in article.sources){
+    for(var source in article.sources){
         launchScraper(article, source, scrapeResults);
     }
 }
@@ -183,7 +171,7 @@ function scrapeResults(obj, cb){
         var status = eval(String(pattern)) || false;
         if (!status){
           console.log(util.inspect(eval(String(pattern))));
-        };
+        }
         var bits = [ obj.article.doi + "<---", "[ " + obj.source + " ]", obj.response.statusCode + ": ", " " + status ];
         console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
         console.log(util.inspect(obj.article));
@@ -194,6 +182,10 @@ function scrapeResults(obj, cb){
         console.log("error in scrapeResults(), ");
         console.log(util.inspect(obj.error));
     }
+}
+
+function newArticles(err, doc){
+
 }
 
 // Express code for routing etc.
@@ -212,39 +204,44 @@ app.get('/article', function(req, res){
 app.post('/article', function(req, res){
     // This should be rewritten to accept a json object with one or more ids , and attempt to find a matching article in the db.
     // working on article add and scraping first
-    // if( req.body.doi ){
-    //     var doi = req.body.doi;
-    //     articleFetch(req.body.doi, res, cb); 
-    // } else if( req.body.dois) { 
-    //     var dois = req.body['dois'];
-    //     for (var i = 0; i < dois.length; i++ ){
-    //         console.log("create  article " + dois[i]);
-    //         articleFetch(dois[i], res, cb);
-    //     }
-    // } else {
-    //     var obj = {message: "malformed json object in request: expecting doi or array of dois"}
-    //     res.json(400, obj);
-    // }
-    req.body.message = "Is there an echo in here?";
-    res.json(200, req.body); // echoing for now
-});
-
-app.post('/article/add', function(req, res){
     if( req.body.doi ){
         var doi = req.body.doi;
-        articleCreate(req.body.doi, res, cb); 
+        articleFetch(req.body.doi, res, cb); 
     } else if( req.body.dois) { 
         var dois = req.body.dois;
         for (var i = 0; i < dois.length; i++ ){
             console.log("create  article " + dois[i]);
-            articleCreate(dois[i], res, cb);
+            articleFetch(dois[i], res, cb);
         }
+    } else {
+        var obj = {message: "malformed json object in request: expecting doi or array of dois"};
+        res.json(400, obj);
+    }
+    req.body.message = "Is there an echo in here?";
+    res.json(200, req.body); // echoing for now
+});
+
+app.post('/article/add', function(req, res){ // post a doi or array of doi's to be added
+    if( req.body.doi ){
+        scraper.initialScrape(req.body.doi, function(article){
+            newArticle(article, function(err, doc){
+                res.json(200, doc);
+            });
+        });
+    } else if( req.body.dois) { 
+        var dois = req.body.dois;
+        for (var i = 0; i < dois.length; i++ ){
+            scraper.initialScrape(dois[i], function(article){
+                newArticle(article, function(err, doc){
+                    console.log("[generating new article] ".green + doc.doi.blue);
+                });
+            });
+        }
+        res.json(200, {messageToMatthew: 'We\'ll get on that right away!'});
     } else {
        var obj = {"error": "malformed json object in request: expecting doi or array of dois"};
        res.json(400, obj);
     }
 });
 
-loadSources();
 app.listen(process.env.PORT || 1337);
-// articleGetStatus(exampleArticle.ids.lid);

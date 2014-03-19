@@ -2,6 +2,7 @@
 var argv = require('minimist')(process.argv.slice(2));
 var fs = require('fs');
 var util = require('util');
+var async = require('async');
 var request = require('request');
 var cheerio = require('cheerio');
 var colors = require('colors');
@@ -12,38 +13,66 @@ var request = request.defaults(
 
 var sources = {};
 //default status sources
-sources.statuses = {
+sources = {
     pubmed: {
-        eid: {
-            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
-            scrapePattern   : '$("#maincontent .rprt .details ").text()'
+        type: 'status',
+        pmi: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pubmed/[id]?report=docsum',
+            scrapePattern   : '$(".rprtid dd").first().text()'
         }
     },
-    pmc:    {
+    pmcentral:    {
+        type: 'status',
         doi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
             scrapePattern   : '$("#maincontent .doi").text().substring(5)'
+        },
+        pmc: {
+            urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/[id]/',
+            scrapePattern   : '$(".accid").text().substring(3)'
+        }
+    },
+    wormbase: {
+        type: 'status',
+        pmi: {
+            urlPatter      : 'wormbase.org/search/paper/[id]',
+            scrapePattern   : '("#overview-content .field-content").first().text()'
         }
     },
     reuters: {
+        type: 'status',
         reu: {
             urlPattern      : 'thomsonreuters.com/is-difficult-to-scrape/[id]',
             scrapePattern   : '$("#magical-id .status-class")'
         }
     },
-
-};
-sources.ids = {
-    pmi: {},
+    pmi: {
+        type: 'id',
+        eid: {
+            urlPattern: 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
+            scrapePattern: '$(".rprt .title a").attr("href").substring(8)'
+             }
+    },
     pmc: {  // info for scraping to find an article's pmc id
+        type: 'id',
         doi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
             scrapePattern   : '$(".rprtid dd").text().substring(3)'
         }
     },
-    pid: {},
-    reu: {},
-    eid: {},
+    pid: {
+        type: 'id',
+    },
+    reu: {
+        type: 'id',
+    },
+    eid: {
+        type: 'id',
+        pmc:{
+            urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/PMC[id]/',
+            scrapePattern   : '$(".citation-abbreviation").text().split(".")[0]+$(".citation-flpages").text().substring(1).split(".")[0]'
+        }
+    },
     doi: {}
 };
 // default article with alot of ids
@@ -94,11 +123,8 @@ function srcScrape(req){
         // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
         // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
         var matchResult = eval(String(scrape)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
-        if(argv.v) { console.log("[ scraping resp ] ".yellow); }
         if (!matchResult){
             console.log("[error]".red + " could not generate  matchResult in srcScrape()");
-            console.log(String(scrape));
-            console.log(eval(String(scrape)));
         };
         result.url = req.url;
         result.body = req.body;
@@ -111,6 +137,7 @@ function srcScrape(req){
         console.log(util.inspect(req.err));
     }
 }
+
 function report(result){
     console.log("[ match results ] ".blue + result.match.green);
     if (!argv.v && !(argv.urlPattern || argv.id || argv.url || argv.scrape)){ console.log("[ Or..... invoke with -v to see how that result was generate. ;-P ]".grey);}
@@ -121,9 +148,110 @@ function report(result){
     if (argv.b) { console.log(html.prettyPrint(result.body));}
 }
 
-// srcFetch();
+function fetch(article, scrapeTarget, scrapeKey, cb){
+    var scrape = sources[scrapeTarget][scrapeKey];
+    scrape.type = sources[scrapeTarget].type;
+    if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
+    scrape.scrapeTarget = scrapeTarget;
+    scrape.scrapeKey = scrapeKey;
+    var token = new RegExp("\\[id\\]");
+    scrape.url = scrape.urlPattern.replace( token, article[scrapeKey] );
+    scrape.url = 'http://' + scrape.url;
 
-if(argv.full && argv.doi && (argv.doi !== true)){
-    console.log('Starting a Full scrape... much actions to be ensueing!'.yellow);
-    console.log('[ doi ] '.green + argv.doi);
+    if(argv.v) { console.log("[  urlPattern   ] ".blue + scrape.urlPattern.green); }
+    if(argv.v) { console.log("[      id       ] ".blue + scrapeKey.green); }
+    if(argv.v) { console.log("[      url      ] ".blue + scrape.url.green); }
+
+    request(String(scrape.url), function(err, res, body){
+        if(argv.v) { console.log("[ Fetching url  ] ".yellow); }
+        if(!err){
+            scrape.res = res;
+            scrape.body = body;
+            scrape.article = article;
+            scrapeResponse(scrape, cb);
+        } else {
+          cb(err, null);
+        }
+    });
+}
+
+function scrapeResponse(scrape, cb){
+    //if(argv.v) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
+
+    $ = cheerio.load(scrape.body);
+    var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
+    $('body').append(scrapeWarning);
+    // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
+    // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
+    scrape.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+    if (!scrape.match){
+        console.log("[error]".red + " could not generate  matchResult in scrapeResponse()");
+        console.log(util.inspect(scrape.article));
+        console.log(eval(String(scrape.scrapePattern)));
+    };
+    // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
+    if(scrape.match){
+        if(scrape.type == 'status'){
+            if(scrape.match = scrape.article[scrape.scrapeKey]){
+                scrape.result = true;
+            } else {
+                scrape.result = false;
+            }
+        } else {
+            if(argv.v){console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);}
+            // Send it off to the db to save.
+            scrape.result = scrape.match;
+        }
+        scrape.article[scrape.scrapeTarget] = scrape.result;
+        cb(null, scrape.result);
+    } else {
+        console.log("There seems to be an error scraping ".red + scrape.scrapeTarget);
+    }
+    return;
+    // get the success or failure and write to the db
+    // need to record datetime and maybe an error message?
+}
+
+
+
+// InitialScrape
+// one stop controller for the initial scrape
+// Going to be a series of scrapes, starting with a doi.
+//
+// Use doi to scrape for other ids. store the results. scrape for status at various indices
+if(argv.full){
+    var article = {};
+    article.doi = argv.doi || '10.4161/biom.25414';
+    article.save = function(){
+      console.log("Do our save here or something");
+    }
+
+    //scrape pmc for pmid
+    // fetchId(article, 'pmc','doi', scrapeId);
+    async.series({
+        pmc: function(cb){ 
+            fetch(article, 'pmc','doi', cb);
+        },
+        eid: function(cb){ 
+            fetch(article, 'eid','pmc', cb);
+        },
+        pmi: function(cb){ 
+            fetch(article, 'pmi','eid', cb);
+        },
+        pubmed: function(cb){
+            fetch(article, 'pubmed', 'pmi', cb);
+        },
+        pmcentral: function(cb){
+            fetch(article, 'pmcentral', 'pmc', cb);
+        }
+    },
+    function writeResutls(err, results){
+      console.log("So now we march forward".red);
+      for (key in results){
+          article[key] = results[key];
+      }
+      article.save();
+      console.log(util.inspect(article).blue);
+      if(err){console.log(err.red);}
+    });
 }
