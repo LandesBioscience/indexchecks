@@ -6,12 +6,12 @@ var dev = (process.env.NODE_ENV == 'development'),
     request = request.defaults( {jar: true} );
 
 if (dev) {
-    var argv    = require('minimist')(process.argv.slice(2)),
-        util    = require('util'),
+    var util    = require('util');
         colors  = require('colors'),
         html    = require('html');
     argv.v = true;
 }
+var argv = (dev) ? require('minimist')(process.argv.slice(2)): null;
 
 var sources = {};
 //default status sources
