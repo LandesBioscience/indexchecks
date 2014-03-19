@@ -79,7 +79,7 @@ sources = {
 };
 
 function cliPut(string){
-    if (dev && argv.v) { console.log(String(string)); }
+    if (dev) { console.log(String(string)); }
 }
 
 exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
@@ -97,7 +97,7 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
     cliPut("[      url      ] ".blue + scrape.url.green);
 
     request(String(scrape.url), function(err, res, body){
-        if(argv.v) { console.log("[ Fetching url  ] ".yellow); }
+        if(dev) { console.log("[ Fetching url  ] ".yellow); }
         if(!err){
             scrape.res = res;
             scrape.body = body;
@@ -110,7 +110,7 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
 }
 
 function scrapeResponse(scrape, cb){
-    if (argv.v) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
+    if (dev) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
 
     $ = cheerio.load(scrape.body);
     var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
@@ -138,7 +138,7 @@ function scrapeResponse(scrape, cb){
                 scrape.result = false;
             }
         } else {
-            if(argv.v){console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);}
+            if(dev){console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);}
             // Send it off to the db to save.
             scrape.result = scrape.match;
         }
