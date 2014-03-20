@@ -83,16 +83,17 @@ function cliPut(string){
 }
 
 exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
-    var scrape = exports.sources[scrapeTarget][scrapeKey];
+    var scrape = {};
+    scrape.source = exports.sources[scrapeTarget][scrapeKey];
     scrape.type = exports.sources[scrapeTarget].type;
     if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
     scrape.scrapeTarget = scrapeTarget;
     scrape.scrapeKey = scrapeKey;
     var token = new RegExp("\\[id\\]");
-    scrape.url = scrape.urlPattern.replace( token, article[scrapeKey] );
+    scrape.url = scrape.source.urlPattern.replace( token, article[scrapeKey] );
     scrape.url = 'http://' + scrape.url;
 
-    cliPut("[  urlPattern   ] ".blue + scrape.urlPattern.green);
+    cliPut("[  urlPattern   ] ".blue + scrape.source.urlPattern.green);
     cliPut("[      id       ] ".blue + scrapeKey.green);
     cliPut("[      url      ] ".blue + scrape.url.green);
 
@@ -110,7 +111,7 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
 };
 
 function scrapeResponse(scrape, cb){
-    if (dev) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
+    if (dev) { console.log("[ scrapePattern ] ".blue + scrape.source.scrapePattern.green); }
 
     $ = cheerio.load(scrape.body);
     var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
@@ -118,7 +119,7 @@ function scrapeResponse(scrape, cb){
     // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
     // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
     try{
-        scrape.match = eval(String(scrape.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+        scrape.match = eval(String(scrape.source.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
     }
     catch(e){
         console.log("having a problem with the eval for article: ".red + String(scrape.article.doi).grey);
