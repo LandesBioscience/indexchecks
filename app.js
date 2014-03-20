@@ -166,8 +166,10 @@ app.configure(function (){
     app.use(express.logger('dev'));
 });
 
-app.get('/article', function(req, res){
-    // Look in the db and respond with the appropriate article
+app.get('/*', function(req, res){
+    var obj = {};
+    obj.message = "post some json!";
+    res.json(200, obj);
 });
 
 app.post('/articles/all', function(req, res){
