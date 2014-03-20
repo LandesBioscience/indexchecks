@@ -44,7 +44,7 @@ var Article = {
 // Helper functions
 function cb(data){
     // This is just a placeholder Callback
-    console.log("[cb()]".red + util.inspect(data).blue);
+    //console.log("[cb()]".red + util.inspect(data).blue);
 }
 
 function queryArticles(cb){
@@ -90,11 +90,11 @@ function articleFetch(params, res, cb){
 function newArticle(article, cb){ // Not sure How this should act... should the server immediately respond to an article save with the saved article, or should it respons with a success message or what?
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(err, collection) {
-          console.log(util.inspect(article));
+          //console.log(util.inspect(article));
             collection.findOne({doi: article.doi}, {}, function(err, doc){
-                console.log("[newArticle() -- checking if article exists]".green);
-                console.log(util.inspect(doc).blue);
-                console.log(util.inspect(err).yellow);
+                //console.log("[newArticle() -- checking if article exists]".green);
+                //console.log(util.inspect(doc).blue);
+                //console.log(util.inspect(err).yellow);
                 if(!doc){
                    doc = article;  // This is a new article. just using findAndModify because it returns the saved object
                 } else {
@@ -142,17 +142,17 @@ function scrapeResults(obj, cb){
         $('body').append(patternWarning);
         var status = eval(String(pattern)) || false;
         if (!status){
-          console.log(util.inspect(eval(String(pattern))));
+          //console.log(util.inspect(eval(String(pattern))));
         }
         var bits = [ obj.article.doi + "<---", "[ " + obj.source + " ]", obj.response.statusCode + ": ", " " + status ];
-        console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
-        console.log(util.inspect(obj.article));
+        //console.log(bits[0].white + bits[1].green + bits[2].white + bits[3].blue ); // What? I want it to look pretty...
+        //console.log(util.inspect(obj.article));
         // get the success or failure and write to the db
         // need to record datetime and maybe an error message?
         cb(obj);
     } else {
-        console.log("error in scrapeResults(), ");
-        console.log(util.inspect(obj.error));
+        //console.log("error in scrapeResults(), ");
+        ////console.log(util.inspect(obj.error));
     }
 }
 
@@ -212,7 +212,7 @@ app.post('/article/add', function(req, res){ // post a doi or array of doi's to 
         for (var i = 0; i < dois.length; i++ ){
             scraper.initialScrape(dois[i], function(article){
                 newArticle(article, function(err, doc){
-                    console.log("[generating new article] ".green + doc.doi.blue);
+                    //console.log("[generating new article] ".green + doc.doi.blue);
                 });
             });
         }
@@ -225,8 +225,8 @@ app.post('/article/add', function(req, res){ // post a doi or array of doi's to 
 
 app.all('/sources', function(req, res){
     res.json(200, scraper.sources);
-    console.log("spitting out sources".grey);
-    console.log(util.inspect(scraper).grey);
+    ////console.log("spitting out sources".grey);
+    //console.log(util.inspect(scraper).grey);
 });
 
 app.get('/*', function(req, res){

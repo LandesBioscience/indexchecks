@@ -88,6 +88,7 @@ function cliPut(string){
 
 exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
     var scrape = {};
+    scrape.errors = [];
     scrape.source = exports.sources[scrapeTarget][scrapeKey];
     scrape.type = exports.sources[scrapeTarget].type;
     if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
@@ -102,7 +103,7 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
     cliPut("[      url      ] ".blue + scrape.url.green);
 
     request(String(scrape.url), function(err, res, body){
-        if(dev) { console.log("[ Fetching url  ] ".yellow); }
+        cliPut(console.log("[ Fetching url  ] ".yellow));
         if(!err){
             scrape.res = res;
             scrape.body = body;
@@ -126,32 +127,39 @@ function scrapeResponse(scrape, cb){
         scrape.match = eval(String(scrape.source.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
     }
     catch(e){
-        console.log("having a problem with the eval for article: ".red + String(scrape.article.doi).grey);
-        if(dev){console.log(util.inspect(e).yellow);}
+        //console.log("having a problem with the eval for article: ".red + String(scrape.article.doi).grey);
+        cliPut(console.log(util.inspect(e).yellow));
+        scrape.match = null;
+        scrape.errors.push(e);
     }
 
     if (!scrape.match){
         cliPut("[error]".red + " could not generate  matchResult in scrapeResponse()");
-        if(dev){cliPut(util.inspect(scrape.article));}
+        cliPut(util.inspect(scrape.article));
     }
     // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
-    if(scrape.match){
+    // if(scrape.match){
         if(scrape.type == 'status'){
+            if(!scrape.match){
+                cliPut("There seems to be an error scraping ".red + scrape.scrapeTarget);
+                // scrape.article[scrape.scrapeTarget].error = 'There seems to be an error scraping' ;
+            }
             if(scrape.match == scrape.article[scrape.scrapeKey]){
                 scrape.result = true;
             } else {
                 scrape.result = false;
             }
         } else {
-            if(dev){console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + scrape.match.yellow);}
+            cliPut(console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + String(scrape.match).yellow));
             // Send it off to the db to save.
-            scrape.result = scrape.match;
+            scrape.result = (scrape.match !== null ) ? scrape.match : "";
         }
         scrape.article[scrape.scrapeTarget] = scrape.result;
+        scrape.result.errors = scrape.errors;
+        ////console.log(util.inspect(scrape));
         cb(null, scrape.result);
-    } else {
-        cliPut("There seems to be an error scraping ".red + scrape.scrapeTarget);
-    }
+    // } else {
+    // }
     return;
     // get the success or failure and write to the db
     // need to record datetime and maybe an error message?
@@ -168,6 +176,7 @@ exports.initialScrape = function(doi, cb){
     article.doi = doi || '10.4161/biom.25414';
     article.save = function(){
       cliPut("Do our save here or something");
+
     };
 
     async.series({
@@ -186,6 +195,7 @@ exports.initialScrape = function(doi, cb){
     },
     function writeResults(err, results){
       // massage these results to create the status object
+      //console.log(util.inspect(results));
       var stat = {};
       for (var prop in results){
           if(Object.prototype.toString.call(results[prop]) == '[object Boolean]'){
@@ -193,7 +203,7 @@ exports.initialScrape = function(doi, cb){
               delete results[prop];
           }
       }
-      stat.error = err;
+      stat.error = results.error;
       results.stats = {};
       results.stats[new Date()] = stat;
       var ret = err || results;

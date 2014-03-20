@@ -3,7 +3,7 @@ var scraper = require('./scraper'),
     util    = require('util');
 
 var article = {};
-article.doi = '10.4161/biom.25414';
+article.doi = '10.41skldfjlsdjfklsdjflksjdfl61/biom.25414';
 
 
 var whatever = function(obj){
