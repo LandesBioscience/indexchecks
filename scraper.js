@@ -174,11 +174,8 @@ exports.initialScrape = function(doi, cb){
         pmc: function(cbb){ 
             exports.fetch(article, 'pmc','doi', cbb);
         },
-        eid: function(cbb){ 
-            exports.fetch(article, 'eid','pmc', cbb);
-        },
         pmi: function(cbb){ 
-            exports.fetch(article, 'pmi','eid', cbb);
+            exports.fetch(article, 'pmi','doi', cbb);
         },
         pubmed: function(cbb){
             exports.fetch(article, 'pubmed', 'pmi', cbb);
