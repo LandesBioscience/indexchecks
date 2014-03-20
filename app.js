@@ -134,7 +134,6 @@ function launchScraper(article, src, cb){
     });
 }
 
-
 function scrapeResults(obj, cb){
     if (!obj.error && obj.response){
         var pattern = obj.source[2] || '$("#scrape-pattern-missing").text()';
@@ -164,12 +163,6 @@ app.use(express.bodyParser());            // pull information from html in POST
 
 app.configure(function (){
     app.use(express.logger('dev'));
-});
-
-app.get('/*', function(req, res){
-    var obj = {};
-    obj.message = "post some json!";
-    res.json(200, obj);
 });
 
 app.post('/articles/all', function(req, res){
@@ -228,6 +221,18 @@ app.post('/article/add', function(req, res){ // post a doi or array of doi's to 
        var obj = {"error": "malformed json object in request: expecting doi or array of dois"};
        res.json(400, obj);
     }
+});
+
+app.all('/sources', function(req, res){
+    res.json(200, scraper.sources);
+    console.log("spitting out sources".grey);
+    console.log(util.inspect(scraper).grey);
+});
+
+app.get('/*', function(req, res){
+    var obj = {};
+    obj.message = "post some json!";
+    res.json(200, obj);
 });
 
 app.listen(process.env.PORT || 1337);

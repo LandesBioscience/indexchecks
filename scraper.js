@@ -13,9 +13,9 @@ if (dev) {
         html    = require('html');
 }
 
-var sources = {};
+var source = {};
 //default status sources
-sources = {
+exports.sources = {
     pubmed: {
         type: 'status',
         pmi: {
@@ -83,8 +83,8 @@ function cliPut(string){
 }
 
 exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
-    var scrape = sources[scrapeTarget][scrapeKey];
-    scrape.type = sources[scrapeTarget].type;
+    var scrape = exports.sources[scrapeTarget][scrapeKey];
+    scrape.type = exports.sources[scrapeTarget].type;
     if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
     scrape.scrapeTarget = scrapeTarget;
     scrape.scrapeKey = scrapeKey;
@@ -107,7 +107,7 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
           cb(err, null);
         }
     });
-}
+};
 
 function scrapeResponse(scrape, cb){
     if (dev) { console.log("[ scrapePattern ] ".blue + scrape.scrapePattern.green); }
