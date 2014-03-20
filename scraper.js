@@ -50,6 +50,10 @@ exports.sources = {
     },
     pmi: {
         type: 'id',
+        doi: {
+            urlPattern      : 'pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=[id]',
+            scrapePattern   : '$("record").attr("pmid")'
+        },
         eid: {
             urlPattern: 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
             scrapePattern: '$(".rprt .title a").attr("href").substring(8)'
@@ -58,8 +62,8 @@ exports.sources = {
     pmc: {  // info for scraping to find an article's pmc id
         type: 'id',
         doi: {
-            urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
-            scrapePattern   : '$(".rprtid dd").text().substring(3)'
+            urlPattern      : 'pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=[id]',
+            scrapePattern   : '$("record").attr("pmcid").substring(3)'
         }
     },
     pid: {
