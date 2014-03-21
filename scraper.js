@@ -20,7 +20,9 @@ exports.sources = {
         type: 'status',
         pmi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pubmed/[id]?report=docsum',
-            scrapePattern   : '$(".rprtid dd").first().text()'
+            scrapePattern   : function($){
+                return $(".rprtid dd").first().text();
+            }
         }
     },
     pmcentral:    {
@@ -44,15 +46,26 @@ exports.sources = {
     reuters: {
         type: 'status',
         reu: {
+
             urlPattern      : 'thomsonreuters.com/is-difficult-to-scrape/[id]',
             scrapePattern   : '$("#magical-id .status-class")'
         }
     },
     pmi: {
         type: 'id',
+        pii: {
+          type: 'json',
+          urlPattern      : 'landesbioscience.com/api/articles/citation_txt/[id]',
+          scrapePattern   : function(json){
+              return json.full_citation.replace(/\s/g, "").split(";").map(function(item){return item.split(":");}).filter(function(item){return item[0] == "PMID";})[0][1];
+            }
+        },
         doi: {
-            urlPattern      : 'pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=[id]',
-            scrapePattern   : '$("record").attr("pmid")'
+          urlPattern      : 'dx.doi.org/[id]',
+          scrapePattern   : function($){
+              return $(".full_citation_text").text().replace(/\s/g, "").split(";").map(function(item){return item.split(":");}).filter(function(item){return item[0] == "PMID";})[0][1];
+
+            }
         },
         eid: {
             urlPattern: 'ncbi.nlm.nih.gov/pubmed/?term=[id]&report=docsum',
@@ -66,11 +79,17 @@ exports.sources = {
             scrapePattern   : '$("record").attr("pmcid").substring(3)'
         }
     },
-    pid: {
+    pii: {
         type: 'id',
+        doi: {
+            urlPattern      : 'dx.doi.org/[id]',
+            scrapePattern   : function($){
+                return $(".tweetpage").attr("article-id");
+            }
+        }
     },
     reu: {
-        type: 'id',
+        type: 'id'
     },
     eid: {
         type: 'id',
@@ -79,7 +98,9 @@ exports.sources = {
             scrapePattern   : '$(".citation-abbreviation").text().split(".")[0]+$(".citation-flpages").text().substring(1).split(".")[0]'
         }
     },
-    doi: {}
+    doi: {
+        type: 'id'
+    }
 };
 
 function cliPut(string){
@@ -95,7 +116,9 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
     scrape.scrapeTarget = scrapeTarget;
     scrape.scrapeKey = scrapeKey;
     var token = new RegExp("\\[id\\]");
-    scrape.url = scrape.source.urlPattern.replace( token, article[scrapeKey] );
+    var scrapKeyValue = article[scrapeKey] || results.scrapeKey;
+
+    scrape.url = scrape.source.urlPattern.replace( token, String(article[scrapeKey]) );
     scrape.url = 'http://' + scrape.url;
 
     cliPut("[  urlPattern   ] ".blue + scrape.source.urlPattern.green);
@@ -103,66 +126,52 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
     cliPut("[      url      ] ".blue + scrape.url.green);
 
     request(String(scrape.url), function(err, res, body){
-        cliPut(console.log("[ Fetching url  ] ".yellow));
-        if(!err){
-            scrape.res = res;
-            scrape.body = body;
-            scrape.article = article;
-            scrapeResponse(scrape, cb);
-        } else {
-          cb(err, null);
-        }
+        cliPut("[ Fetching url  ] ".yellow);
+        scrape.res = res;
+        scrape.body = body;
+        scrape.article = article;
+        scrape.errors.push(err);
+        scrapeResponse(scrape, cb);
     });
 };
 
 function scrapeResponse(scrape, cb){
-    if (dev) { console.log("[ scrapePattern ] ".blue + scrape.source.scrapePattern.green); }
+    var toScrape = (scrape.source.type == 'json') ? JSON.parse(scrape.body) : cheerio.load(scrape.body);
 
-    $ = cheerio.load(scrape.body);
-    var scrapeWarning = "<p id=\"scrape-pattern-missing\">No scrape pattern set for "+scrape.scrapeTarget+"</p>"; // this will be the request going out, just passing to cb for now
-    $('body').append(scrapeWarning);
     // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
-    // This is also where we can step in and override the stored pattern for a source using argv, and turn it into a pattern tester. TODO:NEXT
     try{
-        scrape.match = eval(String(scrape.source.scrapePattern)) || false; // So this is where the pattern, stored as a string, is evaluated as code. 
+        scrape.match = scrape.source.scrapePattern(toScrape);
     }
     catch(e){
-        //console.log("having a problem with the eval for article: ".red + String(scrape.article.doi).grey);
         cliPut(console.log(util.inspect(e).yellow));
-        scrape.match = null;
+        scrape.match = "error";
         scrape.errors.push(e);
     }
 
     if (!scrape.match){
-        cliPut("[error]".red + " could not generate  matchResult in scrapeResponse()");
-        cliPut(util.inspect(scrape.article));
+        var err = {};
+        err.message = "[error]".red + " could not generate  matchResult in scrapeResponse()";
+        cliPut(err.message.red);
+        scrape.errors.push(err);
     }
-    // Would like to add some validation in here... For the status scrape analog there's not realy a true/false, but could be written into the cheerio string.. maybe the same here......but that's really friggin long.
-    // if(scrape.match){
-        if(scrape.type == 'status'){
-            if(!scrape.match){
-                cliPut("There seems to be an error scraping ".red + scrape.scrapeTarget);
-                // scrape.article[scrape.scrapeTarget].error = 'There seems to be an error scraping' ;
-            }
-            if(scrape.match == scrape.article[scrape.scrapeKey]){
-                scrape.result = true;
-            } else {
-                scrape.result = false;
-            }
-        } else {
-            cliPut(console.log("WE HAVE SUCCESS! ".green + String(scrape.scrapeTarget).blue + "=".blue + String(scrape.match).yellow));
-            // Send it off to the db to save.
-            scrape.result = (scrape.match !== null ) ? scrape.match : "";
+    scrape.result = {};
+    scrape.result.match = scrape.match;
+    // ajt: futzing here... 
+    if(scrape.type == 'status'){
+        if(!scrape.match){
+            cliPut("There seems to be an error scraping ".red + scrape.scrapeTarget);
+            scrape.errors.push({scrape: scrape, message: 'There seems to be an error scraping'}) ;
         }
-        scrape.article[scrape.scrapeTarget] = scrape.result;
-        scrape.result.errors = scrape.errors;
-        ////console.log(util.inspect(scrape));
-        cb(null, scrape.result);
-    // } else {
-    // }
-    return;
-    // get the success or failure and write to the db
-    // need to record datetime and maybe an error message?
+        if(scrape.match == scrape.article[scrape.scrapeKey]){
+            scrape.result.match = true;
+        } else {
+            scrape.result.match = false;
+        }
+    }
+    scrape.article[scrape.scrapeTarget] = scrape.result.match;
+    if(scrape.errors.length > 0){ scrape.result.errors = scrape.errors;}
+   cliPut("[scrapeResponse] ".red + scrape.result.match); 
+    cb(null, scrape.result.match);
 }
 
 // Use ./scraper.js -v --test to test the initial scrape route.
@@ -180,34 +189,33 @@ exports.initialScrape = function(doi, cb){
     };
 
     async.series({
-        pmc: function(cbb){ 
-            exports.fetch(article, 'pmc','doi', cbb);
+        pii: function(cbb){ 
+            exports.fetch(article, 'pii','doi', cbb);
         },
         pmi: function(cbb){ 
-            exports.fetch(article, 'pmi','doi', cbb);
+            exports.fetch(article, 'pmi','pii', cbb);
         },
         pubmed: function(cbb){
             exports.fetch(article, 'pubmed', 'pmi', cbb);
-        },
-        pmcentral: function(cbb){
-            exports.fetch(article, 'pmcentral', 'pmc', cbb);
         }
+        // pmcentral: function(cbb){
+        //     exports.fetch(article, 'pmcentral', 'pmc', cbb);
+        // }
     },
     function writeResults(err, results){
       // massage these results to create the status object
-      //console.log(util.inspect(results));
       var stat = {};
+          cliPut("initialScrapeResults before stats".yellow);
+          cliPut(util.inspect(results).yellow);
       for (var prop in results){
           if(Object.prototype.toString.call(results[prop]) == '[object Boolean]'){
               stat[prop] =  results[prop];
               delete results[prop];
           }
       }
-      stat.error = results.error;
       results.stats = {};
       results.stats[new Date()] = stat;
-      var ret = err || results;
-      ret.doi = doi;
-      cb(ret);
+      results.doi = doi;
+      cb(null, results);
     });
 };
