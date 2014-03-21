@@ -206,7 +206,7 @@ app.post('/article', function(req, res){
 
 app.post('/article/add', function(req, res){ // post a doi or array of doi's to be added
     if( req.body.doi ){
-        scraper.initialScrape(req.body.doi, function(article){
+        scraper.initialScrape(req.body.doi, function(err, article){
             newArticle(article, function(err, doc){
                 res.json(200, doc);
             });
@@ -214,7 +214,7 @@ app.post('/article/add', function(req, res){ // post a doi or array of doi's to 
     } else if( req.body.dois) { 
         var dois = req.body.dois;
         for (var i = 0; i < dois.length; i++ ){
-            scraper.initialScrape(dois[i], function(article){
+            scraper.initialScrape(dois[i], function(err, article){
                 newArticle(article, function(err, doc){
                     //console.log("[generating new article] ".green + doc.doi.blue);
                 });
