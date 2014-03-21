@@ -122,7 +122,7 @@ function fetch(article, scrapeTarget, scrapeKey, cb){
     scrape.scrapeTarget = scrapeTarget;
     scrape.scrapeKey = scrapeKey;
     var token = new RegExp("\\[id\\]");
-    var scrapKeyValue = article[scrapeKey] || results.scrapeKey;
+    if(article[scrapeKey]){ var scrapKeyValue = article[scrapeKey]; } else{cb(null, "error"); return; }
 
     try{ scrape.url = scrape.source.urlPattern.replace( token, String(article[scrapeKey]));}
     catch(e){scrape.url  = "error"; scrape.errors.push(e);}
