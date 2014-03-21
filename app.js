@@ -101,6 +101,7 @@ function newArticle(article, cb){ // Not sure How this should act... should the 
                 //console.log(util.inspect(err).yellow);
                 if(!doc){
                    doc = article;  // This is a new article. just using findAndModify because it returns the saved object
+
                 } else {
                     // There is already an entry for this article, we're just going to add our most recent scrape data and save/respond_with that
                     for (var stat in article.stats){
@@ -233,10 +234,19 @@ app.all('/sources', function(req, res){
     //console.log(util.inspect(scraper).grey);
 });
 
+app.post('/please/nuke/the/database', function(req, res){
+    if(req.body.pretty == 'please'){
+        queryArticles(function(articles){
+            articles.remove(function(err, doc){
+                res.json(200, {message: 'Well, how can i refuse such a polite request...'});
+            });
+        });
+    }
+});
+
 app.get('/*', function(req, res){
     var obj = {};
     obj.message = "post some json!";
     res.json(200, obj);
 });
-
 app.listen(process.env.PORT || 1337);
