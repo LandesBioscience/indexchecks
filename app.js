@@ -241,7 +241,9 @@ app.post('/please/nuke/the/database', function(req, res){
                 res.json(200, {message: 'Well, how can i refuse such a polite request...'});
             });
         });
-    }
+    } else if(req.body.pretty == '...'){
+        res.json(200, {message : 'pretty what?'});
+    } else {res.json(404)}
 });
 
 app.get('/*', function(req, res){
