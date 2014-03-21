@@ -150,7 +150,7 @@ function scrapeResponse(scrape, cb){
         scrape.match = scrape.source.scrapePattern(toScrape);
     }
     catch(e){
-        cliPut(console.log(util.inspect(e).yellow));
+        cliPut(util.inspect(e).yellow);
         scrape.match = "error";
         scrape.errors.push(e);
     }
