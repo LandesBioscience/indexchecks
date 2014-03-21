@@ -90,7 +90,7 @@ function articleFetch(params, res, cb){
 function newArticle(article, cb){ // Not sure How this should act... should the server immediately respond to an article save with the saved article, or should it respons with a success message or what?
     mongo.Db.connect(mongoUri, function (err, db) {
         db.collection('articles', function dbWrite(err, collection) {
-            console.log(util.inspect(article));
+            // console.log(util.inspect(article));
             if(!article){
                 cb(err, {error: "There was an error saving the article, perhaps and invalid doi?."}); 
                 return;
