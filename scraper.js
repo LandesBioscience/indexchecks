@@ -8,14 +8,20 @@ var dev = (process.env.NODE_ENV == 'development'),
 
 
 if (dev) {
-    var util    = require('util');
+    var util    = require('util'),
         colors  = require('colors'),
         html    = require('html');
 }
 
+exports.fetch = fetch;
+exports.sources = sources;
+exports.initialScrape = initialScrape;
+
+
+
 var source = {};
 //default status sources
-exports.sources = {
+var sources = {
     pubmed: {
         type: 'status',
         pmi: {
@@ -107,18 +113,19 @@ function cliPut(string){
     if (dev) { console.log(String(string)); }
 }
 
-exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
+function fetch(article, scrapeTarget, scrapeKey, cb){
     var scrape = {};
     scrape.errors = [];
-    scrape.source = exports.sources[scrapeTarget][scrapeKey];
-    scrape.type = exports.sources[scrapeTarget].type;
-    if (!scrape ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
+    scrape.source = sources[scrapeTarget][scrapeKey];
+    scrape.type = sources[scrapeTarget].type;
+    if (!scrape.source ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
     scrape.scrapeTarget = scrapeTarget;
     scrape.scrapeKey = scrapeKey;
     var token = new RegExp("\\[id\\]");
     var scrapKeyValue = article[scrapeKey] || results.scrapeKey;
 
-    scrape.url = scrape.source.urlPattern.replace( token, String(article[scrapeKey]) );
+    try{ scrape.url = scrape.source.urlPattern.replace( token, String(article[scrapeKey]));}
+    catch(e){scrape.url  = "error"; scrape.errors.push(e);}
     scrape.url = 'http://' + scrape.url;
 
     cliPut("[  urlPattern   ] ".blue + scrape.source.urlPattern.green);
@@ -133,7 +140,7 @@ exports.fetch = function(article, scrapeTarget, scrapeKey, cb){
         scrape.errors.push(err);
         scrapeResponse(scrape, cb);
     });
-};
+}
 
 function scrapeResponse(scrape, cb){
     var toScrape = (scrape.source.type == 'json') ? JSON.parse(scrape.body) : cheerio.load(scrape.body);
@@ -180,7 +187,7 @@ function scrapeResponse(scrape, cb){
 // 2. Scrape for status at various indices.
 // 3. Process the results into a new Article object.
 
-exports.initialScrape = function(doi, cb){
+function initialScrape(doi, cb){
     var article = {};
     article.doi = doi || '10.4161/biom.25414';
     article.save = function(){
@@ -190,17 +197,17 @@ exports.initialScrape = function(doi, cb){
 
     async.series({
         pii: function(cbb){ 
-            exports.fetch(article, 'pii','doi', cbb);
+            fetch(article, 'pii','doi', cbb);
         },
         pmi: function(cbb){ 
-            exports.fetch(article, 'pmi','pii', cbb);
+            fetch(article, 'pmi','pii', cbb);
         },
         pubmed: function(cbb){
-            exports.fetch(article, 'pubmed', 'pmi', cbb);
+            fetch(article, 'pubmed', 'pmi', cbb);
+        },
+        pmcentral: function(cbb){
+            fetch(article, 'pmcentral', 'doi', cbb);
         }
-        // pmcentral: function(cbb){
-        //     exports.fetch(article, 'pmcentral', 'pmc', cbb);
-        // }
     },
     function writeResults(err, results){
       // massage these results to create the status object
