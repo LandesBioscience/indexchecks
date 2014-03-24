@@ -6,9 +6,9 @@
 var util    = require('util'),
     express = require('express'),
     mongo   = require('mongodb'),
-    scraper = require('./scraper'),
     logfmt  = require("logfmt"),
-    colors  = require('colors');
+    colors  = require('colors'),
+    scraper = require('./scraper');
 
 
 // Tell mongo to use dev db if none of heroku's environment variables are set

@@ -4,8 +4,17 @@ var dev = (process.env.NODE_ENV == 'development'),
     async   = require('async'),
     request = require('request'),
     util    = require('util'), 
-    cheerio = require('cheerio'),
-    request = request.defaults( {jar: true} );
+    cheerio = require('cheerio');
+
+try{
+    scraperAuthInfo = require('./scraper-auth-info');
+}
+catch(e){
+  cliPut("couldn't find scraper-auth-info.js... This thing is going to crash if you have auth scrape sources".red);
+}
+
+var j = request.jar(),
+    request = request.defaults( {jar: j} );
 
 
 if (dev) {
@@ -13,9 +22,6 @@ if (dev) {
     var colors  = require('colors'),
         html    = require('html');
 }
-
-
-
 
 var source = {};
 //default status sources
@@ -58,6 +64,7 @@ var sources = {
     title: {
         type: 'id',
         pii: {
+          auth            : 'landes', //This is used to trigger authentication, and name the auth source to use.
           urlPattern      : 'landesbioscience.com/admin/article/[id]',
           scrapePattern   : function($){
               return $("#title").text();
@@ -120,9 +127,12 @@ function cliPut(string){
     if (dev) { console.log(String(string)); }
 }
 
+
+
 function fetch(article, scrapeTarget, scrapeKey, cb){
     var scrape = {};
     scrape.errors = [];
+    scrape.scrapeTarget = scrapeTarget;
     scrape.source = sources[scrapeTarget][scrapeKey];
     scrape.type = sources[scrapeTarget].type;
     if (!scrape.source ) {cb(String("[ERROR] No source for scraping " + scrapeTarget + " with " + scrapeKey).red); return;}
@@ -134,31 +144,52 @@ function fetch(article, scrapeTarget, scrapeKey, cb){
     try{ scrape.url = scrape.source.urlPattern.replace( token, String(article[scrapeKey]));}
     catch(e){scrape.url  = "error"; scrape.errors.push(e);}
     scrape.url = 'http://' + scrape.url;
+    scrape.article = article;
 
     cliPut("[  urlPattern   ] ".blue + scrape.source.urlPattern.green);
     cliPut("[      id       ] ".blue + scrapeKey.green);
     cliPut("[      url      ] ".blue + scrape.url.green);
+    if(scrape.source.auth){
+      makeAuthRequest(scrape, cb);
+    } else {
+      makeRequest(scrape, cb);
+    }
+}
 
+function makeAuthRequest(scrape, cb){
+  var authURL = scraperAuthInfo[scrape.source.auth].url;
+  var r = request.post(authURL, function sendAuthRequest(err, httpResponse, bod) {
+    if (err) {
+      return console.error('login failed:', err);
+    }
+    makeRequest(scrape, cb);
+  });
+  var form = r.form();
+  for(var field in scraperAuthInfo[scrape.source.auth].form){
+    form.append(field, scraperAuthInfo[scrape.source.auth].form[field]);
+  }
+  cliPut("[attempting to authenticate]".yellow);
+}
+
+function makeRequest(scrape, cb){
     request(String(scrape.url), function(err, res, body){
         cliPut("[ Fetching url  ] ".yellow);
         scrape.res = res;
         scrape.body = body;
-        scrape.article = article;
         scrape.errors.push(err);
         scrapeResponse(scrape, cb);
     });
 }
 
 function scrapeResponse(scrape, cb){
-    var toScrape = (scrape.source.type == 'json') ? JSON.parse(scrape.body) : cheerio.load(scrape.body);
-
     // The pattern should return the same result as the id given, if we give it a doi, write your pattern to return that same doi....
     try{
-        scrape.match = scrape.source.scrapePattern(toScrape);
+      var toScrape = (scrape.source.type == 'json') ? JSON.parse(scrape.body) : cheerio.load(scrape.body);
+      scrape.match = scrape.source.scrapePattern(toScrape);
     }
     catch(e){
         cliPut(util.inspect(e).yellow);
-        scrape.match = "error";
+        scrape.match = e;
         scrape.errors.push(e);
     }
 
@@ -237,6 +268,7 @@ function initialScrape(doi, cb){
       cb(null, results);
     });
 }
+
 exports.fetch = fetch;
 exports.sources = sources;
 exports.initialScrape = initialScrape;
