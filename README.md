@@ -5,4 +5,4 @@ Indexchecks scans the indexing status of scholarly publications. It accepts list
 
 Still __very much under development!__ 
 
-A useful postman [collection] (https://www.getpostman.com/collections/eda28f0d0e6d64c01b31)
+A useful postman [collection](https://www.getpostman.com/collections/c990d4dbe9c661321269)
