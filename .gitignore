@@ -1,4 +1,3 @@
 node_modules
 heroku-environment*
-scraper-auth-info.js
 .DS_Store

@@ -166,7 +166,12 @@ function makeAuthRequest(scrape, cb){
   });
   var form = r.form();
   for(var field in scraperAuthInfo[scrape.source.auth].form){
-    form.append(field, scraperAuthInfo[scrape.source.auth].form[field]);
+    try{
+      form.append(field, scraperAuthInfo[scrape.source.auth].form[field]);
+    }
+    catch(e){
+      cliPut("I don't think you have your username and password setup as environment variables.".red);
+    }
   }
   cliPut("[attempting to authenticate]".yellow);
 }
