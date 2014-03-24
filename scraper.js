@@ -55,6 +55,15 @@ var sources = {
             scrapePattern   : '$("#magical-id .status-class")'
         }
     },
+    title: {
+        type: 'id',
+        pii: {
+          urlPattern      : 'landesbioscience.com/admin/article/[id]',
+          scrapePattern   : function($){
+              return $("#title").text();
+          }
+        }
+    },
     pmi: {
         type: 'id',
         pii: {
@@ -158,6 +167,7 @@ function scrapeResponse(scrape, cb){
         err.message = "[error]".red + " could not generate  matchResult in scrapeResponse()";
         cliPut(err.message.red);
         scrape.errors.push(err);
+        scrape.match = "Could not generate  matchResult in scrapeResponse()";
     }
     scrape.result = {};
     scrape.result.match = scrape.match;
@@ -196,6 +206,9 @@ function initialScrape(doi, cb){
     async.series({
         pii: function(cbb){ 
             fetch(article, 'pii','doi', cbb);
+        },
+        title: function(cbb){ 
+            fetch(article, 'title','pii', cbb);
         },
         pmi: function(cbb){ 
             fetch(article, 'pmi','pii', cbb);
