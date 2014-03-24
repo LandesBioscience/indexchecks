@@ -14,9 +14,6 @@ if (dev) {
         html    = require('html');
 }
 
-exports.fetch = fetch;
-exports.sources = sources;
-exports.initialScrape = initialScrape;
 
 
 
@@ -226,4 +223,7 @@ function initialScrape(doi, cb){
       results.doi = doi;
       cb(null, results);
     });
-};
+}
+exports.fetch = fetch;
+exports.sources = sources;
+exports.initialScrape = initialScrape;
