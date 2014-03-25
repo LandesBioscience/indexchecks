@@ -205,7 +205,7 @@ app.post('/article', function(req, res){
     }
 });
 
-app.post('/article/add', function(req, res){ // post a doi or array of doi's to be added
+app.post('/article/scrape', function(req, res){ // post a doi or array of doi's to be added
     if( req.body.doi ){
         scraper.initialScrape(req.body.doi, function(err, article){
             newArticle(article, function(err, doc){
