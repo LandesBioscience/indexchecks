@@ -6,6 +6,7 @@
 var util    = require('util'),
     express = require('express'),
     mongo   = require('mongodb'),
+    async   = require('async'),
     logfmt  = require("logfmt"),
     colors  = require('colors'),
     scraper = require('./scraper');
@@ -175,7 +176,7 @@ app.post('/articles/all', function(req, res){
         articles.distinct("doi", function(err, doc){
             var obj = {};
             obj.dois = doc;
-            obj.messageToMatthew = 'that should work now.';
+            obj.message = 'that should work now.';
             res.json(200, obj);
         });
     });
@@ -188,19 +189,44 @@ app.post('/article', function(req, res){
         queryArticles(function(articles){
             articles.findOne({ doi : req.body.doi }, function(err, doc){
                 var response = !err ? doc : err;
-                res.json(200, response);
+                if(response) {
+                  res.json(200, response);
+                } else {
+                  res.json(404, {doi: req.body.doi, message: "Could not find article."});
+                }
             });
         });
-    } else if( req.body.dois) { 
+    } else if( req.body.dois) {
+        var dois = req.body.dois;
         queryArticles(function(articles){
-           articles.find({ doi: { $in : req.body.dois }}, function(err, doc){
-               doc.toArray(function(err, docs){
-                  res.json(200, docs);
-               });
-           });
+          articles.find({ doi: { $in : dois }}, function(err, docs){
+            
+            docs.count(false, function(err, num){
+              if (num === 0 || num === null){
+                console.log("no documents found!".red);
+                res.json(404, {'dois': dois, message: "Couldn't find any matching articles."});
+              }
+            }); 
+            var foundDois = [];
+            var response;
+            docs.toArray(function match(err, docArray){
+              for(var i = 0; i < docArray.length; i++){
+                var doiIdx = dois.indexOf(docArray[i].doi);
+                dois[doiIdx] = docArray[i];
+              }
+              var result = dois.map(function(val, idx, arr){
+                if(typeof val === 'string'){
+                  return {'doi' : val, error : "Couldn't find any matching articles" };
+                } else {
+                  return val;
+                }
+              });
+              res.json(200, result);
+            }); // docs.toArray()
+          });
         });
     } else {
-        var obj = {message: "malformed json object in request: expecting doi or array of dois"};
+        var obj = {message: "Malformed json object in request: expecting doi or array of dois."};
         res.json(400, obj);
     }
 });
@@ -221,7 +247,7 @@ app.post('/article/scrape', function(req, res){ // post a doi or array of doi's 
                 });
             });
         }
-        res.json(200, {messageToMatthew: 'We\'ll get on that right away!'});
+        res.json(200, {message: 'We\'ll get on that right away!'});
     } else {
        var obj = {"error": "malformed json object in request: expecting doi or array of dois"};
        res.json(400, obj);
@@ -249,6 +275,6 @@ app.post('/please/nuke/the/database', function(req, res){
 app.get('/*', function(req, res){
     var obj = {};
     obj.message = "post some json!";
-    res.json(200, obj);
+    res.json(404, obj);
 });
 app.listen(process.env.PORT || 1337);
