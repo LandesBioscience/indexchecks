@@ -31,26 +31,34 @@ var sources = {
         pmi: {
             urlPattern      : 'ncbi.nlm.nih.gov/pubmed/[id]?report=docsum',
             scrapePattern   : function($){
-                return $(".rprtid dd").first().text();
+              return $(".rprtid dd").first().text();
             }
         }
     },
     pmcentral:    {
         type: 'status',
         doi: {
-            urlPattern      : 'ncbi.nlm.nih.gov/pmc/?term=[id]',
-            scrapePattern   : '$("#maincontent .doi").text().substring(5)'
+          type: 'json',
+          urlPattern      : 'www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=[id]&format=json',
+            scrapePattern   : function(json){
+              var record= json.records[json.records.length -1];
+              return (record.error) ? record.error : json.records[json.records.length - 1].doi;
+            }
         },
         pmc: {
             urlPattern      : 'ncbi.nlm.nih.gov/pmc/articles/[id]/',
-            scrapePattern   : '$(".accid").text().substring(3)'
+            scrapePattern   : function($){
+              return $(".accid").text().substring(3);
+            }
         }
     },
     wormbase: {
         type: 'status',
         pmi: {
             urlPatter      : 'wormbase.org/search/paper/[id]',
-            scrapePattern   : '("#overview-content .field-content").first().text()'
+            scrapePattern   : function($){
+              return $("#overview-content .field-content").first().text();
+            }
         }
     },
     reuters: {
@@ -58,7 +66,9 @@ var sources = {
         reu: {
 
             urlPattern      : 'thomsonreuters.com/is-difficult-to-scrape/[id]',
-            scrapePattern   : '$("#magical-id .status-class")'
+            scrapePattern   : function($){
+              return $("#magical-id .status-class");
+            }
         }
     },
     title: {
