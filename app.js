@@ -228,7 +228,7 @@ app.post('/article/scrape', function(req, res){ // post a doi or array of doi's 
     }
 });
 
-app.all('/sources', function(req, res){
+app.post('/sources', function(req, res){
     res.json(200, scraper.sources);
     ////console.log("spitting out sources".grey);
     //console.log(util.inspect(scraper).grey);
