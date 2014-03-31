@@ -1,4 +1,5 @@
 node_modules
 heroku-environment*
+.env
 set_environment_variables.sh
 .DS_Store
