@@ -13,13 +13,20 @@ var util          = require('util'),
     scraper       = require('./scraper'),
     amqp          = require('amqp');
 
-var rabbitDev     = 'localhost',
-    rabbitPro     = process.env.AMQP_SRVR,
-    queue         = 'new-articles',
-    rabbitServer  =  rabbitPro || rabbitDev,
-    amqpEncoding  = 'utf8',
+var amqpEncoding  = 'utf8',
     queueName     = "scraper",
-    connection    = amqp.createConnection({ host: rabbitServer});
+    env           = process.env,
+    cloudAMQP     = {
+                      host     : env.AMQP_SRVR,
+                      vhost    : env.AMQP_VHOST,
+                      login    : env.AMQP_LOGIN,
+                      password : env.AMQP_PSWD,
+                      noDelay  : true,
+                      ssl      : { enabled : false },
+                      connectionTimeout: 0
+                    },
+    rabbitCreds   = (env.NODE_ENV == 'production') ? cloudAMQP : {host : 'localhost'},
+    connection    = amqp.createConnection(rabbitCreds);
 
   // Tell mongo to use dev db if none of heroku's environment variables are set
   var mongoUri = process.env.MONGOLAB_URIi              ||
@@ -206,7 +213,7 @@ if (cluster.isMaster) {
   });
   // Wait for connection to become established.
   connection.on('ready', function () {
-    console.log("[ Attempting to connect to rabbitMQ]".green);
+    console.log("[ Attempting to connect to rabbitMQ] ".green + rabbitCreds.host.blue);
     // connection.exchange(name, {type: 'topic', autoDelete: false}, function(ex){
       connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
         q.subscribe({ ack: true }, function(msg){
