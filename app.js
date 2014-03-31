@@ -27,7 +27,7 @@ var amqpEncoding  = 'utf8',
                     },
     rabbitCreds   = (env.NODE_ENV == 'production') ? cloudAMQP : {host : 'localhost'},
     connection    = amqp.createConnection(rabbitCreds);
-
+  var exchangeOpts = {durable:true, autoDelete: false, type: 'topic'};
   // Tell mongo to use dev db if none of heroku's environment variables are set
   var mongoUri = process.env.MONGOLAB_URIi              ||
                  process.env.MONGOHQ_URL                ||
@@ -178,7 +178,7 @@ var amqpEncoding  = 'utf8',
       }
   }
 function createNewQueue(name){
-  connection.exchange(name, {type: 'topic', autoDelete: false}, function(ex){
+  connection.exchange(name, exchangeOpts, function(ex){
     connection.queue(name, { durable: true, autoDelete: false}, function(q){
       q.bind(ex, "#");
       q.subscribe({ ack: true }, function(msg){
