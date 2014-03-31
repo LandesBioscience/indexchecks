@@ -16,6 +16,7 @@ var util          = require('util'),
 var amqpEncoding  = 'utf8',
     queueName     = "scraper",
     env           = process.env,
+    // don't overright your local env with stuff from heroku... grrrr...
     cloudAMQP     = {
                       host     : env.AMQP_SRVR,
                       vhost    : env.AMQP_VHOST,
