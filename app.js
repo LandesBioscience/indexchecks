@@ -214,8 +214,9 @@ if (cluster.isMaster) {
   // Wait for connection to become established.
   connection.addListener('ready', function () {
     console.log("[ Attempting to connect to rabbitMQ] ".green + rabbitCreds.host.blue);
-    // connection.exchange(name, {type: 'topic', autoDelete: false}, function(ex){
+     connection.exchange('scraper', exchangeOpts, function(ex){
       connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
+        q.bind(ex, "#");
         q.subscribe({ ack: true }, function(msg){
           console.log(util.inspect(msg).red);
           // validate that the amqp message contains a doi as expected
@@ -234,7 +235,7 @@ if (cluster.isMaster) {
           }
         });
       });
-    // });
+    });
   });
   // end of rabbitMQ stuff
 
