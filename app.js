@@ -1,28 +1,26 @@
 // app.js
 // curl -X POST -H "Content-Type:application/json" -d '{"comment":"test", "line":2}' http://localhost:1337/article
-// TODO: improve error logging, complete crape path, consolidate scrape code into a scraper object
+// TODO: https://www.exratione.com/2013/01/nodejs-connections-will-end-close-and-otherwise-blow-up/
 //
 
-var util    = require('util'),
-    cluster = require('cluster'),
-    express = require('express'),
-    mongo   = require('mongodb'),
-    async   = require('async'),
-    logfmt  = require("logfmt"),
-    colors  = require('colors'),
-    scraper = require('./scraper');
+var util          = require('util'),
+    cluster       = require('cluster'),
+    express       = require('express'),
+    mongo         = require('mongodb'),
+    async         = require('async'),
+    logfmt        = require("logfmt"),
+    colors        = require('colors'),
+    scraper       = require('./scraper'),
+    amqp          = require('amqp');
 
-if (cluster.isMaster) {
-  // Count the machine's CPUs
-  var cpuCount = require('os').cpus().length;
+var rabbitDev     = 'localhost',
+    rabbitPro     = process.env.AMQP_SRVR,
+    queue         = 'new-articles',
+    rabbitServer  =  rabbitDev,
+    amqpEncoding  = 'utf8',
+    queueName     = "scraper",
+    connection    = amqp.createConnection({ host: rabbitServer});
 
-  // Create a worker for each CPU
-  for (var i = 0; i < cpuCount; i += 1) {
-    cluster.fork();
-  }
-
-} else {
-  console.log(String('Worker ' + cluster.worker.id + ' running!').blue);
   // Tell mongo to use dev db if none of heroku's environment variables are set
   var mongoUri = process.env.MONGOLAB_URIi              ||
                  process.env.MONGOHQ_URL                ||
@@ -172,6 +170,66 @@ if (cluster.isMaster) {
           ////console.log(util.inspect(obj.error));
       }
   }
+function createNewQueue(name){
+  connection.exchange(name, {type: 'topic', autoDelete: false}, function(ex){
+    connection.queue(name, { durable: true, autoDelete: false}, function(q){
+      q.bind(ex, "#");
+      q.subscribe({ ack: true }, function(msg){
+        console.log(msg);
+        q.shift();
+      });
+    });
+  });
+}
+
+if (cluster.isMaster) {
+  // Count the machine's CPUs
+  var cpuCount = require('os').cpus().length;
+
+  // Create a worker for each CPU
+  for (var i = 0; i < cpuCount; i += 1) {
+    cluster.fork();
+  }
+
+} else {
+
+  console.log(String('Worker ' + cluster.worker.id + ' running!').blue);
+
+  // rabbitMQ stuff
+  connection.addListener('error', function (e){
+    console.log("[ rabbitMQ is down :-( ]".red);
+    console.log(e.grey);
+  });
+  connection.addListener('close', function (e){
+    console.log("[ rabbitMQ connection closed :-( ]".red);
+    console.log(e.grey);
+  });
+  // Wait for connection to become established.
+  connection.on('ready', function () {
+    console.log("[ Attempting to connect to rabbitMQ]".green);
+    // connection.exchange(name, {type: 'topic', autoDelete: false}, function(ex){
+      connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
+        q.subscribe({ ack: true }, function(msg){
+          console.log(util.inspect(msg).red);
+          // validate that the amqp message contains a doi as expected
+          
+          
+          if (msg.doi){
+            scraper.initialScrape(msg.doi, function(err, article){
+                newArticle(article, function(err, doc){
+                q.shift();
+                console.log("[generating new article] ".green + doc.doi.blue);
+                });
+            });
+          } else {
+            console.log("Looks like we recieved an improperly formatted message from the amqp server");
+            q.shift();
+          }
+        });
+      });
+    // });
+  });
+  // end of rabbitMQ stuff
 
   // Express code for routing etc.
   app = express();
@@ -288,5 +346,9 @@ if (cluster.isMaster) {
       obj.message = "post some json!";
       res.json(404, obj);
   });
-  app.listen(process.env.PORT || 1337);
+  app.listen(process.env.PORT || 1337); 
+
+
+
+
 }
