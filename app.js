@@ -193,7 +193,8 @@ function createNewQueue(name){
 if (cluster.isMaster) {
   // Count the machine's CPUs
   var cpuCount = require('os').cpus().length;
-
+  // Keeping it to one core so we don't blow through our amqp connection limit
+  cpuCount = 1;
   // Create a worker for each CPU
   for (var i = 0; i < cpuCount; i += 1) {
     cluster.fork();
