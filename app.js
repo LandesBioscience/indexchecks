@@ -180,7 +180,7 @@ var amqpEncoding  = 'utf8',
   }
 function amqpListen(){
   console.log("[ Attempting to connect to rabbitMQ] ".green + rabbitCreds.host.blue);
-    console.log(util.inspect(cloudAMQP));
+    // console.log(util.inspect(cloudAMQP));
     connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
       q.subscribe({ ack: true }, function(msg){
         console.log(util.inspect(msg).red);
