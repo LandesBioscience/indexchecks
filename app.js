@@ -234,7 +234,7 @@ if (cluster.isMaster) {
   app.use(express.bodyParser());            // pull information from html in POST
 
   app.configure(function (){
-      app.use(express.logger('dev'));
+     if(env.NODE_ENV == 'development') {app.use(express.logger('dev'));}
   });
 
   app.all('/articles/all', function(req, res){
