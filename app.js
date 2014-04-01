@@ -205,9 +205,10 @@ if (cluster.isMaster) {
     console.log(e.grey);
   });
   // Wait for connection to become established.
-  connection.addListener('ready', function () {
+  connection.on('ready', function () {
     console.log("[ Attempting to connect to rabbitMQ] ".green + rabbitCreds.host.blue);
-      connection.exchange('scraper', exchangeOpts, function(ex){
+      console.log(util.inspect(cloudAMQP));
+      //connection.exchange('scraper', exchangeOpts, function(ex){
         connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
          // q.bind(ex, "#");
           q.subscribe({ ack: true }, function(msg){
@@ -228,7 +229,7 @@ if (cluster.isMaster) {
             }
           });
         });
-    });
+    //});
   });
   // end of rabbitMQ stuff
 
