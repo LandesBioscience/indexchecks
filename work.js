@@ -18,7 +18,7 @@ var queueName     = 'scraper',
                       ssl      : { enabled : false },
                       connectionTimeout: 0
                     },
-    rabbitCreds   = cloudAMQP,
+    rabbitCreds   = (env.NODE_ENV == 'production') ? cloudAMQP : {host : 'localhost'},
     connection    = amqp.createConnection(rabbitCreds);
 
 console.log("------- Time To Start Working! --------".green);
