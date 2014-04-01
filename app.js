@@ -178,17 +178,6 @@ var amqpEncoding  = 'utf8',
           ////console.log(util.inspect(obj.error));
       }
   }
-function createNewQueue(name){
-  connection.exchange(name, exchangeOpts, function(ex){
-    connection.queue(name, { durable: true, autoDelete: false}, function(q){
-      q.bind(ex, "#");
-      q.subscribe({ ack: true }, function(msg){
-        console.log(msg);
-        q.shift();
-      });
-    });
-  });
-}
 
 if (cluster.isMaster) {
   // Count the machine's CPUs
@@ -207,37 +196,39 @@ if (cluster.isMaster) {
   // rabbitMQ stuff
   connection.addListener('error', function (e){
     console.log("[ rabbitMQ is down :-( ]".red);
+      console.log(util.inspect(cloudAMQP));
     console.log(e.grey);
   });
   connection.addListener('close', function (e){
     console.log("[ rabbitMQ connection closed :-( ]".red);
+      console.log(util.inspect(cloudAMQP));
     console.log(e.grey);
   });
   // Wait for connection to become established.
   connection.addListener('ready', function () {
     console.log("[ Attempting to connect to rabbitMQ] ".green + rabbitCreds.host.blue);
-     //connection.exchange('scraper', exchangeOpts, function(ex){
-      connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
-       // q.bind(ex, "#");
-        q.subscribe({ ack: true }, function(msg){
-          console.log(util.inspect(msg).red);
-          // validate that the amqp message contains a doi as expected
-          
-          
-          if (msg.doi){
-            scraper.initialScrape(msg.doi, function(err, article){
-                newArticle(article, function(err, doc){
-                q.shift();
-                console.log("[generating new article] ".green + doc.doi.blue);
-                });
-            });
-          } else {
-            console.log("Looks like we recieved an improperly formatted message from the amqp server");
-            q.shift();
-          }
+      connection.exchange('scraper', exchangeOpts, function(ex){
+        connection.queue(queueName, { durable: true, autoDelete: false}, function(q){
+         // q.bind(ex, "#");
+          q.subscribe({ ack: true }, function(msg){
+            console.log(util.inspect(msg).red);
+            // validate that the amqp message contains a doi as expected
+            
+            
+            if (msg.doi){
+              scraper.initialScrape(msg.doi, function(err, article){
+                  newArticle(article, function(err, doc){
+                  q.shift();
+                  console.log("[generating new article] ".green + doc.doi.blue);
+                  });
+              });
+            } else {
+              console.log("Looks like we recieved an improperly formatted message from the amqp server");
+              q.shift();
+            }
+          });
         });
-      });
-    //});
+    });
   });
   // end of rabbitMQ stuff
 
