@@ -203,7 +203,7 @@ if (cluster.isMaster) {
   // Count the machine's CPUs
   var cpuCount = require('os').cpus().length;
   // Keeping it to one core so we don't blow through our amqp connection limit
-  cpuCount = 1;
+  //cpuCount = 1;
   // Create a worker for each CPU
   for (var i = 0; i < cpuCount; i += 1) {
     cluster.fork();
@@ -237,10 +237,13 @@ if (cluster.isMaster) {
       app.use(express.logger('dev'));
   });
 
-  app.post('/articles/all', function(req, res){
+  app.all('/articles/all', function(req, res){
       queryArticles(function(articles){
           articles.distinct("doi", function(err, doc){
               var obj = {};
+              obj.articles = doc.map(function(doiVal){
+                return {doi: doiVal};
+              });
               obj.dois = doc;
               obj.message = 'that should work now.';
               res.json(200, obj);
