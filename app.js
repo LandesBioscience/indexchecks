@@ -244,7 +244,7 @@ if (cluster.isMaster) {
               obj.articles = doc.map(function(doiVal){
                 return {doi: doiVal};
               });
-              obj.dois = doc;
+              //obj.dois = doc;
               obj.message = 'that should work now.';
               res.json(200, obj);
           });
