@@ -41,8 +41,10 @@ var sources = {
           type: 'json',
           urlPattern      : 'www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=[id]&format=json',
             scrapePattern   : function(json){
+              
               var record= json.records[json.records.length -1];
-              return (record.error) ? record.error : json.records[json.records.length - 1].doi;
+              
+              return (record.live == "false" || json.records.status == 'error') ?  "error": json.records[json.records.length - 1].doi ;
             }
         },
         pmc: {
